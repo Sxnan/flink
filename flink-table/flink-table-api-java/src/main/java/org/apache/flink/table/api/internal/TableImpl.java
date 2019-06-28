@@ -551,6 +551,15 @@ public class TableImpl implements Table {
 	}
 
 	@Override
+	public Table cache() {
+		// TODO: to be implemented
+		// do nothing for now
+		String tableId = tableEnvironment.getCacheManager().registerTableToCache(this);
+		this.insertInto(tableId);
+		return this;
+	}
+
+	@Override
 	public String toString() {
 		if (tableName == null) {
 			tableName = "UnnamedTable$" + uniqueId.getAndIncrement();

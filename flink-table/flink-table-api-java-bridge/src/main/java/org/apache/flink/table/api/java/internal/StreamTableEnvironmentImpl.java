@@ -28,6 +28,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.CacheManager;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
@@ -305,6 +306,11 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
 			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
 		insertInto(table, sinkPath, sinkPathContinued);
+	}
+
+	@Override
+	public CacheManager getCacheManager() {
+		throw new UnsupportedOperationException("Cache is not supported in Stream Table");
 	}
 
 	/**

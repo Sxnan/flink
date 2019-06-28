@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.api.CacheManager;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
@@ -50,6 +51,7 @@ import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.TableSinkSourceFactory;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
@@ -473,6 +475,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} catch (Exception e) {
 			throw new TableException("Could not register table", e);
 		}
+	}
+
+	@Override
+	public CacheManager getCacheManager() {
+		throw new UnsupportedOperationException("Cache is not supported in this environment");
+	}
+
+	@Override
+	public void registerTableSinkSourceFactory(TableSinkSourceFactory tableSinkSourceFactory) {
+		throw new UnsupportedOperationException("Cache is not supported in this environment");
 	}
 
 	protected void registerTableInternal(String name, CatalogBaseTable table) {
