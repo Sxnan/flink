@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ExternalCatalog;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptor;
+import org.apache.flink.table.factories.TableSinkSourceFactory;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -494,4 +495,8 @@ public interface TableEnvironment {
 	 * Returns the table config that defines the runtime behavior of the Table API.
 	 */
 	TableConfig getConfig();
+
+	CacheManager getCacheManager();
+
+	void registerTableSinkSourceFactory(TableSinkSourceFactory tableSinkSourceFactory);
 }

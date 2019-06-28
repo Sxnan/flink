@@ -209,4 +209,6 @@ class TableImpl(val tableEnv: TableEnvironment, operationTree: QueryOperation) e
   override def flatAggregate(tableAggregateFunction: String): FlatAggregateTable = ???
 
   override def flatAggregate(tableAggregateFunction: Expression): FlatAggregateTable = ???
+
+  override def cache(): Table = ???
 }

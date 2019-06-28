@@ -21,9 +21,10 @@ package org.apache.flink.table.utils
 import java.util.Optional
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.{CacheManager, QueryConfig, Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.catalog.{Catalog, ExternalCatalog}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
+import org.apache.flink.table.factories.TableSinkSourceFactory
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
@@ -97,4 +98,12 @@ class MockTableEnvironment extends TableEnvironment {
     table: Table,
     sinkPath: String,
     sinkPathContinued: String*): Unit = ???
+
+  override def getCacheManager: CacheManager = ???
+
+  override def registerTableSinkSourceFactory(tableSinkSourceFactory: TableSinkSourceFactory): Unit = ???
+}
+
+object MockTableEnvironment {
+
 }

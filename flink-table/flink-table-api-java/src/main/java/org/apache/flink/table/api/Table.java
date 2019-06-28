@@ -1150,4 +1150,6 @@ public interface Table {
 	 * </pre>
 	 */
 	FlatAggregateTable flatAggregate(Expression tableAggregateFunction);
+
+	Table cache();
 }

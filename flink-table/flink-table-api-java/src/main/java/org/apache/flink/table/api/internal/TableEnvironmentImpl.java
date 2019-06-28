@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.api.CacheManager;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
@@ -47,6 +48,7 @@ import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
+import org.apache.flink.table.factories.TableSinkSourceFactory;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
@@ -61,11 +63,7 @@ import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.util.StringUtils;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Implementation of {@link TableEnvironment} that works exclusively with Table API interfaces.
@@ -353,6 +351,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	@Override
 	public TableConfig getConfig() {
 		return tableConfig;
+	}
+
+	@Override
+	public CacheManager getCacheManager() {
+		throw new UnsupportedOperationException("Cache is not supported in this environment");
+	}
+
+	@Override
+	public void registerTableSinkSourceFactory(TableSinkSourceFactory tableSinkSourceFactory) {
+		throw new UnsupportedOperationException("Cache is not supported in this environment");
 	}
 
 	protected void registerTableInternal(String name, CatalogBaseTable table) {
