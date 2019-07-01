@@ -51,6 +51,9 @@ public class SimpleCacheExample {
 		DataSet<WC> result = tEnv.toDataSet(countedTable.filter("frequency > 1"), WC.class);
 		result.print();
 
+		// TODO: this should be called by Execution Environnment / Table Environment when the job finished
+		tEnv.getCacheManager().finishAllCaching();
+
 		System.out.println("-------------------");
 		result = tEnv.toDataSet(countedTable.filter("frequency <= 1"), WC.class);
 		result.print();
@@ -83,13 +86,13 @@ class MySinkSourceFactory extends TableSinkSourceFactory {
 	final private String tempDir = "/Users/xuannansu/cache";
 
 	@Override
-	public TableSource<Row> createTableSource(String tableName, TableSchema tableSchema, Map<String, String> extraProperties) {
+	public TableSource<Row> createTableSource(String tableName, TableSchema tableSchema) {
 		String tablePath = Paths.get(tempDir, tableName).toString();
 		return new CsvTableSource(tablePath, tableSchema.getFieldNames(), tableSchema.getFieldTypes());
 	}
 
 	@Override
-	public TableSink<Row> createTableSink(String tableName, TableSchema tableSchema, Map<String, String> extraProperties) {
+	public TableSink<Row> createTableSink(String tableName, TableSchema tableSchema) {
 		String tablePath = Paths.get(tempDir, tableName).toString();
 		return new MyTableSink(tablePath, tableSchema);
 	}
