@@ -6,8 +6,12 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.TableSinkSourceFactory;
+import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.OperationTreeBuilder;
+import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.util.Preconditions;
 
@@ -117,7 +121,21 @@ public class CacheManager {
 
 	private QueryOperation replaceQueryOperationChildren(OperationTreeBuilder builder, QueryOperation queryOperation,
 														 List<QueryOperation> children) {
-		// TODO: to be implemented
+
+
+		if (queryOperation instanceof ProjectQueryOperation) {
+			ProjectQueryOperation projectQueryOperation = (ProjectQueryOperation) queryOperation;
+			List<Expression> expressionList = new ArrayList<>();
+			for (ResolvedExpression resolvedExpression : projectQueryOperation.getProjectList()) {
+				expressionList.add(resolvedExpression);
+			}
+			return builder.project(expressionList, children.get(0));
+		} else if (queryOperation instanceof FilterQueryOperation) {
+			FilterQueryOperation filterQueryOperation = (FilterQueryOperation) queryOperation;
+			return builder.filter(filterQueryOperation.getCondition(), children.get(0));
+		}
+		// TODO: more type of QueryOperation to handle
+
 		return queryOperation;
 	}
 }

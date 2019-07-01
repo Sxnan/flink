@@ -261,9 +261,9 @@ abstract class BatchTableEnvImpl(
       table: Table,
       queryConfig: BatchQueryConfig)(implicit tpe: TypeInformation[A]): DataSet[A] = {
     val queryOperation = table.getQueryOperation
-    // TODO: replace cached query operation if it is cached
-
-    val relNode = getRelBuilder.tableOperation(queryOperation).build()
+    // replace cached query operation if it is cached
+    val newQueryOperation  = getCacheManager.buildOperationTree(operationTreeBuilder, queryOperation);
+    val relNode = getRelBuilder.tableOperation(newQueryOperation).build()
     val dataSetPlan = optimizer.optimize(relNode)
     translate(
       dataSetPlan,

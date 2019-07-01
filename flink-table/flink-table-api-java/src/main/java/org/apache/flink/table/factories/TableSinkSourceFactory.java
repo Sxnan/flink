@@ -13,21 +13,17 @@ public abstract class TableSinkSourceFactory implements TableSourceFactory<Row>,
 	final public TableSource<Row> createTableSource(Map<String, String> properties) {
 		DescriptorProperties params = new DescriptorProperties();
 		params.putProperties(properties);
-		return createTableSource(params.getString("__table__name__"), params.getTableSchema("__schema__"),
-			params.getPropertiesWithPrefix("__user__"));
+		return createTableSource(params.getString("__table__name__"), params.getTableSchema("__schema__"));
 	}
 
 	@Override
 	final public TableSink<Row> createTableSink(Map<String, String> properties) {
 		DescriptorProperties params = new DescriptorProperties();
 		params.putProperties(properties);
-		return createTableSink(params.getString("__table__name__"), params.getTableSchema("__schema__"),
-			params.getPropertiesWithPrefix("__user__"));
+		return createTableSink(params.getString("__table__name__"), params.getTableSchema("__schema__"));
 	}
 
-	abstract public TableSource<Row> createTableSource(String tableName, TableSchema tableSchema,
-												   Map<String, String> extraProperties);
+	abstract public TableSource<Row> createTableSource(String tableName, TableSchema tableSchema);
 
-	abstract public TableSink<Row> createTableSink(String tableName, TableSchema tableSchema,
-												   Map<String, String> extraProperties);
+	abstract public TableSink<Row> createTableSink(String tableName, TableSchema tableSchema);
 }
