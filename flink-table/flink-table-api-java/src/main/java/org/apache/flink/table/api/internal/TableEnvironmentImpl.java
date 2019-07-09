@@ -48,7 +48,8 @@ import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
-import org.apache.flink.table.factories.TableSinkSourceFactory;
+import org.apache.flink.table.factories.TableSinkFactory;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
@@ -359,7 +360,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
-	public void registerTableSinkSourceFactory(TableSinkSourceFactory tableSinkSourceFactory) {
+	public void registerTableSinkSourceFactory(TableSourceFactory tableSourceFactory, TableSinkFactory tableSinkFactory) {
 		throw new UnsupportedOperationException("Cache is not supported in this environment");
 	}
 

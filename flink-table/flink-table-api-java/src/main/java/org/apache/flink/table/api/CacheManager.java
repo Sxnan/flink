@@ -8,7 +8,8 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.factories.TableSinkSourceFactory;
+import org.apache.flink.table.factories.TableSinkFactory;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.OperationTreeBuilder;
 import org.apache.flink.table.operations.ProjectQueryOperation;
@@ -18,7 +19,8 @@ import org.apache.flink.util.Preconditions;
 import java.util.*;
 
 public class CacheManager {
-	private TableSinkSourceFactory tableSinkSourceFactory;
+	private TableSourceFactory tableSourceFactory;
+	private TableSinkFactory tableSinkFactory;
 	private TableEnvironment tableEnvironment;
 	private Map<QueryOperation, String> cachingTables = new HashMap<>();
 	private Map<QueryOperation, String> cachedTables = new HashMap<>();
@@ -27,6 +29,11 @@ public class CacheManager {
 		this.tableEnvironment = tableEnvironment;
 	}
 
+	/**
+	 * Register the table to be cached, the data is not yet write to the sink.
+	 * @param table the table to be cached after the job finished.
+	 * @return the Id of the cached table
+	 */
 	public String registerTableToCache(Table table) {
 		if (isCaching(table)) {
 			return cachingTables.get(table.getQueryOperation());
@@ -45,8 +52,8 @@ public class CacheManager {
 	private void registerTableToCatalog(String id, Table table) {
 		Map<String, String> sinkSourceConf = getSinkSourceConf(id, table);
 		ConnectorCatalogTable connectorCatalogTable =
-			ConnectorCatalogTable.sourceAndSink(tableSinkSourceFactory.createTableSource(sinkSourceConf),
-				tableSinkSourceFactory.createTableSink(sinkSourceConf),
+			ConnectorCatalogTable.sourceAndSink(tableSourceFactory.createTableSource(sinkSourceConf),
+				tableSinkFactory.createTableSink(sinkSourceConf),
 				true);
 		Catalog catalog = tableEnvironment.getCatalog(tableEnvironment.getCurrentCatalog()).orElse(null);
 
@@ -86,15 +93,34 @@ public class CacheManager {
 		cachedTables.put(table.getQueryOperation(), id);
 	}
 
-	public void finishAllCaching() {
+	/**
+	 * Move all tables from cachingTable to cachedTable so that the CacheManager can replace the cached table with
+	 * a table source upon a submission of another job.
+	 */
+	public void markAllTableCached() {
 		cachedTables.putAll(cachingTables);
 		cachingTables.clear();
 	}
 
-	public void registerCacheStorage(TableSinkSourceFactory tableSinkSourceFactory) {
-		this.tableSinkSourceFactory = tableSinkSourceFactory;
+	/**
+	 * Register the TableSourceFactory and TableSinkFactory, which will be used to create TableSource and TableSink to
+	 * read from and write to the external cache storage.
+	 * @param tableSourceFactory table source factory to create table source
+	 * @param tableSinkFactory table sink factory to create table sink
+	 */
+	public void registerCacheStorage(TableSourceFactory tableSourceFactory,
+										  TableSinkFactory tableSinkFactory) {
+		this.tableSourceFactory = tableSourceFactory;
+		this.tableSinkFactory = tableSinkFactory;
 	}
 
+
+	/**
+	 * Go through the operation tree and replace the cached table and its subtree with a table source
+	 * @param builder used to build the operation tree
+	 * @param queryOperation the root of the operation tree
+	 * @return the new operation tree, in which the cached table is replaced
+	 */
 	public QueryOperation buildOperationTree(OperationTreeBuilder builder, QueryOperation queryOperation) {
 		if (cachedTables.containsKey(queryOperation)) {
 			// table is in cached
