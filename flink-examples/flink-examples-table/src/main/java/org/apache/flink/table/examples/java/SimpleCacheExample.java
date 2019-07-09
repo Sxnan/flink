@@ -1,26 +1,18 @@
 package org.apache.flink.table.examples.java;
 
-import com.google.common.io.Files;
-import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.CsvOutputFormat;
-import org.apache.flink.api.java.io.RowCsvInputFormat;
-import org.apache.flink.api.java.io.TextInputFormat;
-import org.apache.flink.api.java.io.TextOutputFormat;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.factories.TableSinkSourceFactory;
-import org.apache.flink.table.sinks.*;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.factories.TableSinkFactory;
+import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.CsvTableSource;
-import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import java.nio.file.Paths;
@@ -33,7 +25,7 @@ public class SimpleCacheExample {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
-		tEnv.registerTableSinkSourceFactory(new MySinkSourceFactory());
+		tEnv.registerTableSinkSourceFactory(new MySourceFactory(), new MySinkFactory());
 
 		DataSet<WC> input = env.fromElements(
 			new WC("a", 1),
@@ -44,6 +36,8 @@ public class SimpleCacheExample {
 			new WC("c", 1));
 
 		Table sourceTable = tEnv.fromDataSet(input);
+		sourceTable.cache();
+
 		Table countedTable = sourceTable.groupBy("word")
 			.select("word, frequency.sum as frequency")
 			.cache();
@@ -51,8 +45,8 @@ public class SimpleCacheExample {
 		DataSet<WC> result = tEnv.toDataSet(countedTable.filter("frequency > 1"), WC.class);
 		result.print();
 
-		// TODO: this should be called by Execution Environnment / Table Environment when the job finished
-		tEnv.getCacheManager().finishAllCaching();
+		// TODO: this should be called by Execution Environment / Table Environment when the job finished
+		tEnv.getCacheManager().markAllTableCached();
 
 		System.out.println("-------------------");
 		result = tEnv.toDataSet(countedTable.filter("frequency <= 1"), WC.class);
@@ -81,20 +75,18 @@ public class SimpleCacheExample {
 	}
 }
 
-class MySinkSourceFactory extends TableSinkSourceFactory {
-
+class MySourceFactory implements TableSourceFactory<Row> {
 	final private String tempDir = "/Users/xuannansu/cache";
 
 	@Override
-	public TableSource<Row> createTableSource(String tableName, TableSchema tableSchema) {
+	public TableSource<Row> createTableSource(Map<String, String> properties) {
+		DescriptorProperties params = new DescriptorProperties();
+		params.putProperties(properties);
+		TableSchema tableSchema = params.getTableSchema("__schema__");
+		String tableName = params.getString("__table__name__");
 		String tablePath = Paths.get(tempDir, tableName).toString();
-		return new CsvTableSource(tablePath, tableSchema.getFieldNames(), tableSchema.getFieldTypes());
-	}
 
-	@Override
-	public TableSink<Row> createTableSink(String tableName, TableSchema tableSchema) {
-		String tablePath = Paths.get(tempDir, tableName).toString();
-		return new MyTableSink(tablePath, tableSchema);
+		return new CsvTableSource(tablePath, tableSchema.getFieldNames(), tableSchema.getFieldTypes());
 	}
 
 	@Override
@@ -106,58 +98,31 @@ class MySinkSourceFactory extends TableSinkSourceFactory {
 	public List<String> supportedProperties() {
 		return null;
 	}
-
 }
 
-class MyTableSink extends OutputFormatTableSink<Row> {
+class MySinkFactory implements TableSinkFactory<Row> {
+	final private String tempDir = "/Users/xuannansu/cache";
 
-	private String path;
-	private TableSchema tableSchame;
+	@Override
+	public TableSink<Row> createTableSink(Map<String, String> properties) {
+		DescriptorProperties params = new DescriptorProperties();
+		params.putProperties(properties);
+		TableSchema tableSchema = params.getTableSchema("__schema__");
+		String tableName = params.getString("__table__name__");
 
-	MyTableSink(String path, TableSchema tableSchema) {
-		this.path = path;
-		this.tableSchame = tableSchema;
+		String tablePath = Paths.get(tempDir, tableName).toString();
+		String[] fieldNames = tableSchema.getFieldNames();
+		TypeInformation[] typeInformations = tableSchema.getFieldTypes();
+		return new CsvTableSink(tablePath, ",").configure(fieldNames, typeInformations);
 	}
 
 	@Override
-	public OutputFormat<Row> getOutputFormat() {
-		return new TextOutputFormat<>(new Path(path));
-	}
-
-	@Override
-	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+	public Map<String, String> requiredContext() {
 		return null;
 	}
 
 	@Override
-	public TableSchema getTableSchema() {
-		return tableSchame;
+	public List<String> supportedProperties() {
+		return null;
 	}
-
-	@Override
-	public DataType getConsumedDataType() {
-		return tableSchame.toRowDataType();
-	}
-}
-
-class MyTableSource extends InputFormatTableSource<Row> {
-
-	private String path;
-	private TableSchema tableSchema;
-
-	MyTableSource(String path, TableSchema tableSchema) {
-		this.path = path;
-		this.tableSchema = tableSchema;
-	}
-
-	@Override
-	public InputFormat<Row, ?> getInputFormat() {
-		return new RowCsvInputFormat(new Path(path), tableSchema.getFieldTypes());
-	}
-
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
-
 }

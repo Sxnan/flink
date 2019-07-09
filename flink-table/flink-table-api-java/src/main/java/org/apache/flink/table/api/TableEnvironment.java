@@ -27,7 +27,8 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ExternalCatalog;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.factories.TableSinkSourceFactory;
+import org.apache.flink.table.factories.TableSinkFactory;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -577,5 +578,5 @@ public interface TableEnvironment {
 
 	CacheManager getCacheManager();
 
-	void registerTableSinkSourceFactory(TableSinkSourceFactory tableSinkSourceFactory);
+	void registerTableSinkSourceFactory(TableSourceFactory tableSourceFactory, TableSinkFactory tableSinkFactory);
 }
