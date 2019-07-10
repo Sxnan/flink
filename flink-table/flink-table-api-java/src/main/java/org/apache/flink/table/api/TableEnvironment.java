@@ -578,5 +578,5 @@ public interface TableEnvironment {
 
 	CacheManager getCacheManager();
 
-	void registerTableSinkSourceFactory(TableSourceFactory tableSourceFactory, TableSinkFactory tableSinkFactory);
+	void registerTableSinkSourceFactory(IntermediateResultStorage intermediateResultStorage);
 }

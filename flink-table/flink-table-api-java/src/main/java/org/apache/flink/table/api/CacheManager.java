@@ -7,10 +7,10 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.factories.TableSinkFactory;
-import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.OperationTreeBuilder;
 import org.apache.flink.table.operations.ProjectQueryOperation;
@@ -22,8 +22,7 @@ import java.util.*;
 public class CacheManager {
 
 	private final Catalog catalog;
-	private TableSourceFactory tableSourceFactory;
-	private TableSinkFactory tableSinkFactory;
+	private IntermediateResultStorage intermediateResultStorage;
 	private TableEnvironment tableEnvironment;
 	private Map<QueryOperation, String> cachingTables = new HashMap<>();
 	private Map<QueryOperation, String> cachedTables = new HashMap<>();
@@ -59,10 +58,13 @@ public class CacheManager {
 	}
 
 	private void registerTableToCatalog(String id, Table table) {
-		Map<String, String> sinkSourceConf = getSinkSourceConf(id, table);
+		Map<String, String> sinkSourceConf =
+			intermediateResultStorage.getTableCreationHook().createTable(id, getSinkSourceConf(table));
+
 		ConnectorCatalogTable connectorCatalogTable =
-			ConnectorCatalogTable.sourceAndSink(tableSourceFactory.createTableSource(sinkSourceConf),
-				tableSinkFactory.createTableSink(sinkSourceConf),
+			ConnectorCatalogTable.sourceAndSink(
+				intermediateResultStorage.getTableSourceFactory().createTableSource(sinkSourceConf),
+				intermediateResultStorage.getTableSinkFactory().createTableSink(sinkSourceConf),
 				true);
 
 		try {
@@ -75,10 +77,9 @@ public class CacheManager {
 		}
 	}
 
-	private Map<String, String> getSinkSourceConf(String tableName, Table table) {
+	private Map<String, String> getSinkSourceConf(Table table) {
 		DescriptorProperties descriptorProperties = new DescriptorProperties();
-		descriptorProperties.putTableSchema("__schema__", table.getSchema());
-		descriptorProperties.putString("__table__name__", tableName);
+		descriptorProperties.putTableSchema(Schema.SCHEMA, table.getSchema());
 		return descriptorProperties.asMap();
 	}
 
@@ -111,13 +112,10 @@ public class CacheManager {
 	/**
 	 * Register the TableSourceFactory and TableSinkFactory, which will be used to create TableSource and TableSink to
 	 * read from and write to the external cache storage.
-	 * @param tableSourceFactory table source factory to create table source
-	 * @param tableSinkFactory table sink factory to create table sink
+	 * @param intermediateResultStorage
 	 */
-	public void registerCacheStorage(TableSourceFactory tableSourceFactory,
-										  TableSinkFactory tableSinkFactory) {
-		this.tableSourceFactory = tableSourceFactory;
-		this.tableSinkFactory = tableSinkFactory;
+	public void registerCacheStorage(IntermediateResultStorage intermediateResultStorage) {
+		this.intermediateResultStorage = intermediateResultStorage;
 	}
 
 

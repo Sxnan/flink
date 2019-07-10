@@ -26,6 +26,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.CacheManager;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.IntermediateResultStorage;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -50,8 +51,6 @@ import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
-import org.apache.flink.table.factories.TableSinkFactory;
-import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.CatalogQueryOperation;
@@ -484,7 +483,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
-	public void registerTableSinkSourceFactory(TableSourceFactory tableSourceFactory, TableSinkFactory tableSinkFactory) {
+	public void registerTableSinkSourceFactory(IntermediateResultStorage intermediateResultStorage) {
 		throw new UnsupportedOperationException("Cache is not supported in this environment");
 	}
 

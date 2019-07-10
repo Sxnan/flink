@@ -3,29 +3,24 @@ package org.apache.flink.table.examples.java;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.table.api.CleanUpHook;
+import org.apache.flink.table.api.IntermediateResultStorage;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableCreationHook;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.*;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
-import org.apache.flink.table.sinks.CsvTableSink;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.CsvTableSource;
-import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.types.Row;
-
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import org.apache.flink.table.sinks.CsvBatchTableSinkFactory;
+import org.apache.flink.table.sources.CsvBatchTableSourceFactory;
 
 public class SimpleCacheExample {
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
-		tEnv.registerTableSinkSourceFactory(new MySourceFactory(), new MySinkFactory());
+		tEnv.registerTableSinkSourceFactory(new MyIntermediateResultStorage());
 
 		DataSet<WC> input = env.fromElements(
 			new WC("a", 1),
@@ -75,54 +70,52 @@ public class SimpleCacheExample {
 	}
 }
 
-class MySourceFactory implements TableSourceFactory<Row> {
-	final private String tempDir = "/Users/xuannansu/cache";
+class MyIntermediateResultStorage implements IntermediateResultStorage {
+
+
+	private static final String CACHE_FOLDER = "/Users/xuannansu/cache/";
+//	private static final String CACHE_FOLDER = "hdfs:///cache";
 
 	@Override
-	public TableSource<Row> createTableSource(Map<String, String> properties) {
-		DescriptorProperties params = new DescriptorProperties();
-		params.putProperties(properties);
-		TableSchema tableSchema = params.getTableSchema("__schema__");
-		String tableName = params.getString("__table__name__");
-		String tablePath = Paths.get(tempDir, tableName).toString();
-
-		return new CsvTableSource(tablePath, tableSchema.getFieldNames(), tableSchema.getFieldTypes());
+	public TableSourceFactory getTableSourceFactory() {
+		return new CsvBatchTableSourceFactory();
 	}
 
 	@Override
-	public Map<String, String> requiredContext() {
-		return new HashMap<>();
+	public TableSinkFactory getTableSinkFactory() {
+		return new CsvBatchTableSinkFactory();
 	}
 
 	@Override
-	public List<String> supportedProperties() {
-		return null;
+	public CleanUpHook getCleanUpHook() {
+		return (tablesToDelete, properties) -> {
+		};
 	}
-}
-
-class MySinkFactory implements TableSinkFactory<Row> {
-	final private String tempDir = "/Users/xuannansu/cache";
 
 	@Override
-	public TableSink<Row> createTableSink(Map<String, String> properties) {
-		DescriptorProperties params = new DescriptorProperties();
-		params.putProperties(properties);
-		TableSchema tableSchema = params.getTableSchema("__schema__");
-		String tableName = params.getString("__table__name__");
+	public TableCreationHook getTableCreationHook() {
+		return (tableName, properties) -> {
+			DescriptorProperties descriptorProperties = new DescriptorProperties();
+			descriptorProperties.putProperties(properties);
+			TableSchema tableSchema = descriptorProperties.getTableSchema(Schema.SCHEMA);
 
-		String tablePath = Paths.get(tempDir, tableName).toString();
+			ConnectorDescriptor connectorDescriptor = new FileSystem().path(CACHE_FOLDER + tableName);
+			BatchTableDescriptor batchTableDescriptor = new BatchTableDescriptor(null, connectorDescriptor);
+			OldCsv formatDescriptor = getFormatDescriptor(tableSchema);
+			batchTableDescriptor.withFormat(formatDescriptor);
+			descriptorProperties.putProperties(batchTableDescriptor.toProperties());
+			return descriptorProperties.asMap();
+		};
+	}
+
+	private OldCsv getFormatDescriptor(TableSchema tableSchema) {
 		String[] fieldNames = tableSchema.getFieldNames();
 		TypeInformation[] typeInformations = tableSchema.getFieldTypes();
-		return new CsvTableSink(tablePath, ",").configure(fieldNames, typeInformations);
-	}
+		OldCsv oldCsv = new OldCsv();
 
-	@Override
-	public Map<String, String> requiredContext() {
-		return null;
-	}
-
-	@Override
-	public List<String> supportedProperties() {
-		return null;
+		for (int i = 0; i < fieldNames.length; ++i) {
+			oldCsv.field(fieldNames[i], typeInformations[i]);
+		}
+		return oldCsv;
 	}
 }

@@ -25,7 +25,6 @@ import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.api.java.BatchTableEnvironment
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.ExpressionParser
-import org.apache.flink.table.factories.{TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 
 import _root_.scala.collection.JavaConverters._
@@ -131,8 +130,7 @@ class BatchTableEnvironmentImpl(
     cacheManager
   }
 
-  override def registerTableSinkSourceFactory(tableSourceFactory: TableSourceFactory[_],
-                                              tableSinkFactory: TableSinkFactory[_]): Unit = {
-    cacheManager.registerCacheStorage(tableSourceFactory, tableSinkFactory);
+  override def registerTableSinkSourceFactory(intermediateResultStorage: IntermediateResultStorage): Unit = {
+    cacheManager.registerCacheStorage(intermediateResultStorage)
   }
 }
