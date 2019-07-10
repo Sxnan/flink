@@ -2,6 +2,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
@@ -19,14 +20,22 @@ import org.apache.flink.util.Preconditions;
 import java.util.*;
 
 public class CacheManager {
+
+	private final Catalog catalog;
 	private TableSourceFactory tableSourceFactory;
 	private TableSinkFactory tableSinkFactory;
 	private TableEnvironment tableEnvironment;
 	private Map<QueryOperation, String> cachingTables = new HashMap<>();
 	private Map<QueryOperation, String> cachedTables = new HashMap<>();
+	 public static final String CATALOG_NAME = "CACHE_TABLE_CATALOG";
+	public static final String DEFAULT_DATABASE = "DEFAULT";
 
 	public CacheManager(TableEnvironment tableEnvironment) {
 		this.tableEnvironment = tableEnvironment;
+		tableEnvironment.registerCatalog(CATALOG_NAME, new GenericInMemoryCatalog(CATALOG_NAME, DEFAULT_DATABASE));
+		this.catalog = tableEnvironment.getCatalog(CATALOG_NAME).orElse(null);
+
+		Preconditions.checkNotNull(this.catalog);
 	}
 
 	/**
@@ -55,9 +64,6 @@ public class CacheManager {
 			ConnectorCatalogTable.sourceAndSink(tableSourceFactory.createTableSource(sinkSourceConf),
 				tableSinkFactory.createTableSink(sinkSourceConf),
 				true);
-		Catalog catalog = tableEnvironment.getCatalog(tableEnvironment.getCurrentCatalog()).orElse(null);
-
-		Preconditions.checkNotNull(catalog);
 
 		try {
 			catalog.createTable(new ObjectPath(catalog.getDefaultDatabase(), id), connectorCatalogTable,
@@ -125,7 +131,7 @@ public class CacheManager {
 		if (cachedTables.containsKey(queryOperation)) {
 			// table is in cached
 			String tableId = cachedTables.get(queryOperation);
-			return tableEnvironment.scan(tableId).getQueryOperation();
+			return tableEnvironment.scan(CATALOG_NAME, DEFAULT_DATABASE, tableId).getQueryOperation();
 		}
 
 		List<QueryOperation> children = new ArrayList<>();

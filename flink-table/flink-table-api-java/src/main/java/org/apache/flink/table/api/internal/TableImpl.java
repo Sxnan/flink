@@ -21,6 +21,7 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.table.api.AggregatedTable;
+import org.apache.flink.table.api.CacheManager;
 import org.apache.flink.table.api.FlatAggregateTable;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.GroupWindowedTable;
@@ -553,7 +554,7 @@ public class TableImpl implements Table {
 	@Override
 	public Table cache() {
 		String tableId = tableEnvironment.getCacheManager().registerTableToCache(this);
-		this.insertInto(tableId);
+		this.insertInto(CacheManager.CATALOG_NAME, CacheManager.DEFAULT_DATABASE, tableId);
 		return this;
 	}
 
