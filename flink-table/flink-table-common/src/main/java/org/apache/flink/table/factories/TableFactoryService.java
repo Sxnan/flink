@@ -20,9 +20,11 @@ package org.apache.flink.table.factories;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.AmbiguousTableFactoryException;
+import org.apache.flink.table.api.Configurable;
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.descriptors.Descriptor;
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.util.Preconditions;
@@ -150,7 +152,13 @@ public class TableFactoryService {
 				tableFactories,
 				properties);
 		} else {
-			return filtered.get(0);
+			T object = filtered.get(0);
+			if (object instanceof Configurable) {
+				DescriptorProperties descriptorProperties = new DescriptorProperties();
+				descriptorProperties.putProperties(properties);
+				((Configurable) object).configure(descriptorProperties.getPropertiesWithPrefix("intermediate-result-storage.configs"));
+			}
+			return object;
 		}
 	}
 

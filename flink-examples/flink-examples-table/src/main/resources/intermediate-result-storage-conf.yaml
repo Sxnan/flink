@@ -1,0 +1,4 @@
+intermediate-result-storage:
+  type: filesystem
+  configs:
+    cache-folder: /tmp

@@ -9,18 +9,27 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableCreationHook;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.descriptors.*;
+import org.apache.flink.table.descriptors.BatchTableDescriptor;
+import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.FileSystem;
+import org.apache.flink.table.descriptors.OldCsv;
+import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sinks.CsvBatchTableSinkFactory;
 import org.apache.flink.table.sources.CsvBatchTableSourceFactory;
+import org.apache.flink.util.Preconditions;
+
+import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 public class SimpleCacheExample {
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
-
-		tEnv.registerTableSinkSourceFactory(new MyIntermediateResultStorage());
 
 		DataSet<WC> input = env.fromElements(
 			new WC("a", 1),
@@ -68,54 +77,78 @@ public class SimpleCacheExample {
 			return word + " " + frequency;
 		}
 	}
-}
 
-class MyIntermediateResultStorage implements IntermediateResultStorage {
+	public static class MyIntermediateResultStorage implements IntermediateResultStorage {
+		private String cacheFolder;
 
+		public MyIntermediateResultStorage() {
 
-	private static final String CACHE_FOLDER = "/Users/xuannansu/cache/";
-//	private static final String CACHE_FOLDER = "hdfs:///cache";
-
-	@Override
-	public TableSourceFactory getTableSourceFactory() {
-		return new CsvBatchTableSourceFactory();
-	}
-
-	@Override
-	public TableSinkFactory getTableSinkFactory() {
-		return new CsvBatchTableSinkFactory();
-	}
-
-	@Override
-	public CleanUpHook getCleanUpHook() {
-		return (tablesToDelete, properties) -> {
-		};
-	}
-
-	@Override
-	public TableCreationHook getTableCreationHook() {
-		return (tableName, properties) -> {
-			DescriptorProperties descriptorProperties = new DescriptorProperties();
-			descriptorProperties.putProperties(properties);
-			TableSchema tableSchema = descriptorProperties.getTableSchema(Schema.SCHEMA);
-
-			ConnectorDescriptor connectorDescriptor = new FileSystem().path(CACHE_FOLDER + tableName);
-			BatchTableDescriptor batchTableDescriptor = new BatchTableDescriptor(null, connectorDescriptor);
-			OldCsv formatDescriptor = getFormatDescriptor(tableSchema);
-			batchTableDescriptor.withFormat(formatDescriptor);
-			descriptorProperties.putProperties(batchTableDescriptor.toProperties());
-			return descriptorProperties.asMap();
-		};
-	}
-
-	private OldCsv getFormatDescriptor(TableSchema tableSchema) {
-		String[] fieldNames = tableSchema.getFieldNames();
-		TypeInformation[] typeInformations = tableSchema.getFieldTypes();
-		OldCsv oldCsv = new OldCsv();
-
-		for (int i = 0; i < fieldNames.length; ++i) {
-			oldCsv.field(fieldNames[i], typeInformations[i]);
 		}
-		return oldCsv;
+
+		public MyIntermediateResultStorage(String cacheFolder) {
+			this.cacheFolder = cacheFolder;
+		}
+
+		@Override
+		public TableSourceFactory getTableSourceFactory() {
+			return new CsvBatchTableSourceFactory();
+		}
+
+		@Override
+		public TableSinkFactory getTableSinkFactory() {
+			return new CsvBatchTableSinkFactory();
+		}
+
+		@Override
+		public CleanUpHook getCleanUpHook() {
+			return (tablesToDelete, properties) -> {
+			};
+		}
+
+		@Override
+		public TableCreationHook getTableCreationHook() {
+			return (tableName, properties) -> {
+				Preconditions.checkNotNull(cacheFolder, "cache folder cannot be null");
+
+				DescriptorProperties descriptorProperties = new DescriptorProperties();
+				descriptorProperties.putProperties(properties);
+				TableSchema tableSchema = descriptorProperties.getTableSchema(Schema.SCHEMA);
+
+				ConnectorDescriptor connectorDescriptor = new FileSystem().path(Paths.get(cacheFolder, tableName).toString());
+				BatchTableDescriptor batchTableDescriptor = new BatchTableDescriptor(null, connectorDescriptor);
+				OldCsv formatDescriptor = getFormatDescriptor(tableSchema);
+				batchTableDescriptor.withFormat(formatDescriptor);
+				descriptorProperties.putProperties(batchTableDescriptor.toProperties());
+				return descriptorProperties.asMap();
+			};
+		}
+
+		private OldCsv getFormatDescriptor(TableSchema tableSchema) {
+			String[] fieldNames = tableSchema.getFieldNames();
+			TypeInformation[] typeInformations = tableSchema.getFieldTypes();
+			OldCsv oldCsv = new OldCsv();
+
+			for (int i = 0; i < fieldNames.length; ++i) {
+				oldCsv.field(fieldNames[i], typeInformations[i]);
+			}
+			return oldCsv;
+		}
+
+		@Override
+		public void configure(Map<String, ?> configs) {
+			cacheFolder = (String) configs.get("cache-folder");
+		}
+
+		@Override
+		public Map<String, String> requiredContext() {
+			return Collections.singletonMap("intermediate-result-storage.type", "filesystem");
+		}
+
+		@Override
+		public List<String> supportedProperties() {
+			return Collections.singletonList("intermediate-result-storage.configs.cache-folder");
+		}
 	}
 }
+
+

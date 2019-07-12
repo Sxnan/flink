@@ -1,5 +1,6 @@
 package org.apache.flink.table.api;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -10,31 +11,59 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.operations.FilterQueryOperation;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.OperationTreeBuilder;
 import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.utils.ConfigUtil;
 import org.apache.flink.util.Preconditions;
 
-import java.util.*;
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class CacheManager {
 
+	private static final String CONF_FILE_NAME = "intermediate-result-storage-conf.yaml";
 	private final Catalog catalog;
 	private IntermediateResultStorage intermediateResultStorage;
 	private TableEnvironment tableEnvironment;
 	private Map<QueryOperation, String> cachingTables = new HashMap<>();
 	private Map<QueryOperation, String> cachedTables = new HashMap<>();
-	 public static final String CATALOG_NAME = "CACHE_TABLE_CATALOG";
+
+	public static final String CATALOG_NAME = "CACHE_TABLE_CATALOG";
 	public static final String DEFAULT_DATABASE = "DEFAULT";
 
 	public CacheManager(TableEnvironment tableEnvironment) {
 		this.tableEnvironment = tableEnvironment;
 		tableEnvironment.registerCatalog(CATALOG_NAME, new GenericInMemoryCatalog(CATALOG_NAME, DEFAULT_DATABASE));
 		this.catalog = tableEnvironment.getCatalog(CATALOG_NAME).orElse(null);
-
 		Preconditions.checkNotNull(this.catalog);
+
+		loadIntermediateResultStorageIfExist();
+	}
+
+	private void loadIntermediateResultStorageIfExist() {
+		URL url = getClass().getClassLoader().getResource(CONF_FILE_NAME);
+		if (url == null) {
+			return;
+		}
+		ObjectMapper objectMapper = new ConfigUtil.LowerCaseYamlMapper();
+		try {
+			DescriptorProperties descriptorProperties =
+				ConfigUtil.normalizeYaml(objectMapper.readValue(url, Map.class));
+			TableFactoryService tableFactoryService = new TableFactoryService();
+			IntermediateResultStorage intermediateResultStorage =
+				tableFactoryService.find(IntermediateResultStorage.class, descriptorProperties.asMap());
+			registerCacheStorage(intermediateResultStorage);
+		} catch (IOException e) {
+			return;
+		}
 	}
 
 	/**
@@ -117,7 +146,6 @@ public class CacheManager {
 	public void registerCacheStorage(IntermediateResultStorage intermediateResultStorage) {
 		this.intermediateResultStorage = intermediateResultStorage;
 	}
-
 
 	/**
 	 * Go through the operation tree and replace the cached table and its subtree with a table source
