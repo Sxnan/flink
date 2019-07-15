@@ -28,6 +28,7 @@ import org.apache.flink.table.client.config.entries.TableEntry;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
+import org.apache.flink.table.utils.ConfigUtil;
 
 import java.io.IOException;
 import java.net.URL;

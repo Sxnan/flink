@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.client.config.entries;
 
-import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.utils.ConfigUtil;
 
 import java.util.Collections;
 import java.util.Map;
