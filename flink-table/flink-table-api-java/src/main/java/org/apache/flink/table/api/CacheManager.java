@@ -13,11 +13,13 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.operations.FilterQueryOperation;
-import org.apache.flink.table.operations.OperationTreeBuilder;
 import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.utils.ConfigUtil;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URL;
@@ -28,6 +30,8 @@ import java.util.Map;
 import java.util.UUID;
 
 public class CacheManager {
+
+	private static final Logger log = LoggerFactory.getLogger(CacheManager.class);
 
 	private static final String CONF_FILE_NAME = "intermediate-result-storage-conf.yaml";
 	private final Catalog catalog;
@@ -49,8 +53,11 @@ public class CacheManager {
 	}
 
 	private void loadIntermediateResultStorageIfExist() {
+
+		log.info("loading {} from the classpath", CONF_FILE_NAME);
 		URL url = getClass().getClassLoader().getResource(CONF_FILE_NAME);
 		if (url == null) {
+			log.info("{} is not found", CONF_FILE_NAME);
 			return;
 		}
 		ObjectMapper objectMapper = new ConfigUtil.LowerCaseYamlMapper();
@@ -62,7 +69,7 @@ public class CacheManager {
 				tableFactoryService.find(IntermediateResultStorage.class, descriptorProperties.asMap());
 			registerCacheStorage(intermediateResultStorage);
 		} catch (IOException e) {
-			return;
+			throw new RuntimeException(e);
 		}
 	}
 
