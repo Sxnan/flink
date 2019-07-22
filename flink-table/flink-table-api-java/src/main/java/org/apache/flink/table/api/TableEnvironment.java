@@ -577,6 +577,4 @@ public interface TableEnvironment {
 	JobExecutionResult execute(String jobName) throws Exception;
 
 	CacheManager getCacheManager();
-
-	void registerTableSinkSourceFactory(IntermediateResultStorage intermediateResultStorage);
 }

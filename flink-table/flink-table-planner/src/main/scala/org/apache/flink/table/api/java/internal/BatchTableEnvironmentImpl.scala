@@ -126,11 +126,6 @@ class BatchTableEnvironmentImpl(
     sinkPathContinued: String*): Unit = insertInto(table, sinkPath, sinkPathContinued: _*)
 
   override def getCacheManager: CacheManager = {
-    // TODO: to be implemented
     cacheManager
-  }
-
-  override def registerTableSinkSourceFactory(intermediateResultStorage: IntermediateResultStorage): Unit = {
-    cacheManager.registerCacheStorage(intermediateResultStorage)
   }
 }

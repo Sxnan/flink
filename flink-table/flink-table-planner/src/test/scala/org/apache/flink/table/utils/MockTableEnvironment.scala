@@ -98,8 +98,6 @@ class MockTableEnvironment extends TableEnvironment {
   override def execute(jobName: String): JobExecutionResult = ???
 
   override def getCacheManager: CacheManager = ???
-
-  override def registerTableSinkSourceFactory(intermediateResultStorage: IntermediateResultStorage): Unit = ???
 }
 
 object MockTableEnvironment {
