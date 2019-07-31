@@ -3,9 +3,9 @@ package org.apache.flink.table.examples.java;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.CleanUpHook;
 import org.apache.flink.table.api.IntermediateResultStorage;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableCleanUpHook;
 import org.apache.flink.table.api.TableCreationHook;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
@@ -100,7 +100,7 @@ public class SimpleCacheExample {
 		}
 
 		@Override
-		public CleanUpHook getCleanUpHook() {
+		public TableCleanUpHook getCleanUpHook() {
 			return (tablesToDelete, properties) -> {
 			};
 		}
@@ -135,11 +135,6 @@ public class SimpleCacheExample {
 		}
 
 		@Override
-		public void configure(Map<String, ?> configs) {
-			cacheFolder = (String) configs.get("cache-folder");
-		}
-
-		@Override
 		public Map<String, String> requiredContext() {
 			return Collections.singletonMap("intermediate-result-storage.type", "filesystem");
 		}
@@ -147,6 +142,11 @@ public class SimpleCacheExample {
 		@Override
 		public List<String> supportedProperties() {
 			return Collections.singletonList("intermediate-result-storage.configs.cache-folder");
+		}
+
+		@Override
+		public void configure(Map<String, String> configs) {
+			cacheFolder = configs.get("cache-folder");
 		}
 	}
 }
