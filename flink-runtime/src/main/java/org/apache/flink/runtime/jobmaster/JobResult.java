@@ -28,6 +28,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ClusterPartitionReport;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
@@ -63,16 +64,19 @@ public class JobResult implements Serializable {
 
 	private final long netRuntime;
 
+	private final ClusterPartitionReport clusterPartitionReport;
+
 	/** Stores the cause of the job failure, or {@code null} if the job finished successfully. */
 	@Nullable
 	private final SerializedThrowable serializedThrowable;
 
 	private JobResult(
-			final JobID jobId,
-			final ApplicationStatus applicationStatus,
-			final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
-			final long netRuntime,
-			@Nullable final SerializedThrowable serializedThrowable) {
+		final JobID jobId,
+		final ApplicationStatus applicationStatus,
+		final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
+		final long netRuntime,
+		ClusterPartitionReport clusterPartitionReport,
+		@Nullable final SerializedThrowable serializedThrowable) {
 
 		checkArgument(netRuntime >= 0, "netRuntime must be greater than or equals 0");
 
@@ -81,6 +85,7 @@ public class JobResult implements Serializable {
 		this.accumulatorResults = requireNonNull(accumulatorResults);
 		this.netRuntime = netRuntime;
 		this.serializedThrowable = serializedThrowable;
+		this.clusterPartitionReport = clusterPartitionReport;
 	}
 
 	/**
@@ -155,6 +160,10 @@ public class JobResult implements Serializable {
 		}
 	}
 
+	public ClusterPartitionReport getClusterPartitionReport() {
+		return clusterPartitionReport;
+	}
+
 	/**
 	 * Builder for {@link JobResult}.
 	 */
@@ -170,6 +179,8 @@ public class JobResult implements Serializable {
 		private long netRuntime = -1;
 
 		private SerializedThrowable serializedThrowable;
+
+		private ClusterPartitionReport clusterPartitionReport;
 
 		public Builder jobId(final JobID jobId) {
 			this.jobId = jobId;
@@ -196,12 +207,18 @@ public class JobResult implements Serializable {
 			return this;
 		}
 
+		public Builder clusterPartitionReport(final ClusterPartitionReport clusterPartitionReport) {
+			this.clusterPartitionReport = clusterPartitionReport;
+			return this;
+		}
+
 		public JobResult build() {
 			return new JobResult(
 				jobId,
 				applicationStatus,
 				accumulatorResults == null ? Collections.emptyMap() : accumulatorResults,
 				netRuntime,
+				clusterPartitionReport,
 				serializedThrowable);
 		}
 	}
@@ -238,6 +255,8 @@ public class JobResult implements Serializable {
 			checkNotNull(errorInfo, "No root cause is found for the job failure.");
 
 			builder.serializedThrowable(errorInfo.getException());
+		} else {
+			builder.clusterPartitionReport(accessExecutionGraph.getClusterPartitionReport());
 		}
 
 		return builder.build();

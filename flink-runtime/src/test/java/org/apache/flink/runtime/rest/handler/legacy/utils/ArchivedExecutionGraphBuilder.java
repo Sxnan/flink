@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ClusterPartitionReport;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.OptionalFailure;
@@ -55,6 +56,7 @@ public class ArchivedExecutionGraphBuilder {
 	private ArchivedExecutionConfig archivedExecutionConfig;
 	private boolean isStoppable;
 	private Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
+	private ClusterPartitionReport clusterPartitionReport;
 
 	public ArchivedExecutionGraphBuilder setJobID(JobID jobID) {
 		this.jobID = jobID;
@@ -131,7 +133,7 @@ public class ArchivedExecutionGraphBuilder {
 			tasks,
 			verticesInCreationOrder != null ? verticesInCreationOrder : new ArrayList<>(tasks.values()),
 			stateTimestamps != null ? stateTimestamps : new long[JobStatus.values().length],
-			state != null ? state : JobStatus.FINISHED,
+			clusterPartitionReport, state != null ? state : JobStatus.FINISHED,
 			failureCause,
 			jsonPlan != null ? jsonPlan : "{\"jobid\":\"" + jobID + "\", \"name\":\"" + jobName + "\", \"nodes\":[]}",
 			archivedUserAccumulators != null ? archivedUserAccumulators : new StringifiedAccumulatorResult[0],
@@ -142,5 +144,9 @@ public class ArchivedExecutionGraphBuilder {
 			null,
 			"stateBackendName"
 		);
+	}
+
+	public void setClusterPartitionReport(ClusterPartitionReport clusterPartitionReport) {
+		this.clusterPartitionReport = clusterPartitionReport;
 	}
 }

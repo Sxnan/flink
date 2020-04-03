@@ -172,4 +172,6 @@ public interface AccessExecutionGraph {
 	 * @return The state backend name, or an empty Optional in the case of batch jobs
 	 */
 	Optional<String> getStateBackendName();
+
+    ClusterPartitionReport getClusterPartitionReport();
 }

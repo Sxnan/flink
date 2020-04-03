@@ -73,6 +73,9 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.ProducerDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
@@ -105,6 +108,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -1733,5 +1737,48 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	PartitionReleaseStrategy getPartitionReleaseStrategy() {
 		return partitionReleaseStrategy;
+	}
+
+	public ClusterPartitionReport getClusterPartitionReport() {
+		Collection<IntermediateDataSetID> clusterPartitions = getClusterPartitions();
+
+		HashMap<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> map =
+			new HashMap<>(clusterPartitions.size());
+		for (IntermediateDataSetID id : clusterPartitions) {
+			final IntermediateResult intermediateResult = intermediateResults.get(id);
+			final IntermediateResultPartition[] partitions = intermediateResult.getPartitions();
+
+			Set<ClusterPartitionDescriptor> shuffleDescriptorSet = new HashSet<>();
+
+			for (IntermediateResultPartition partition : partitions) {
+				PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
+				final Execution currentExecutionAttempt = partition.getProducer().getCurrentExecutionAttempt();
+				final ProducerDescriptor producerDescriptor =
+					ProducerDescriptor.create(currentExecutionAttempt.getAssignedResourceLocation(),
+						currentExecutionAttempt.getAttemptId());
+
+				try {
+					final ShuffleDescriptor shuffleDescriptor = shuffleMaster.registerPartitionWithProducer(partitionDescriptor, producerDescriptor).get();
+					shuffleDescriptorSet.add(new ClusterPartitionDescriptor(shuffleDescriptor,
+						partitionDescriptor.getNumberOfSubpartitions(),
+						partitionDescriptor.getPartitionType(),
+						partitionDescriptor.getResultId()));
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				} catch (ExecutionException e) {
+					e.printStackTrace();
+				}
+			}
+			map.put(id, shuffleDescriptorSet);
+		}
+
+		return new ClusterPartitionReport(map);
+	}
+
+	private Collection<IntermediateDataSetID> getClusterPartitions() {
+		return this.intermediateResults.entrySet().stream()
+			.filter((entry) -> entry.getValue().getResultType().isPersistent())
+			.map(Map.Entry::getKey)
+			.collect(Collectors.toList());
 	}
 }

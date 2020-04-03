@@ -69,6 +69,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	 */
 	private final long[] stateTimestamps;
 
+	private final ClusterPartitionReport clusterPartitionReport;
+
 	// ------ Configuration of the Execution -------
 
 	// ------ Execution status and progress. These values are volatile, and accessed under the lock -------
@@ -100,27 +102,28 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	private final String stateBackendName;
 
 	public ArchivedExecutionGraph(
-			JobID jobID,
-			String jobName,
-			Map<JobVertexID, ArchivedExecutionJobVertex> tasks,
-			List<ArchivedExecutionJobVertex> verticesInCreationOrder,
-			long[] stateTimestamps,
-			JobStatus state,
-			@Nullable ErrorInfo failureCause,
-			String jsonPlan,
-			StringifiedAccumulatorResult[] archivedUserAccumulators,
-			Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators,
-			ArchivedExecutionConfig executionConfig,
-			boolean isStoppable,
-			@Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
-			@Nullable CheckpointStatsSnapshot checkpointStatsSnapshot,
-			@Nullable String stateBackendName) {
+		JobID jobID,
+		String jobName,
+		Map<JobVertexID, ArchivedExecutionJobVertex> tasks,
+		List<ArchivedExecutionJobVertex> verticesInCreationOrder,
+		long[] stateTimestamps,
+		ClusterPartitionReport clusterPartitionReport, JobStatus state,
+		@Nullable ErrorInfo failureCause,
+		String jsonPlan,
+		StringifiedAccumulatorResult[] archivedUserAccumulators,
+		Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators,
+		ArchivedExecutionConfig executionConfig,
+		boolean isStoppable,
+		@Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
+		@Nullable CheckpointStatsSnapshot checkpointStatsSnapshot,
+		@Nullable String stateBackendName) {
 
 		this.jobID = Preconditions.checkNotNull(jobID);
 		this.jobName = Preconditions.checkNotNull(jobName);
 		this.tasks = Preconditions.checkNotNull(tasks);
 		this.verticesInCreationOrder = Preconditions.checkNotNull(verticesInCreationOrder);
 		this.stateTimestamps = Preconditions.checkNotNull(stateTimestamps);
+		this.clusterPartitionReport = clusterPartitionReport;
 		this.state = Preconditions.checkNotNull(state);
 		this.failureCause = failureCause;
 		this.jsonPlan = Preconditions.checkNotNull(jsonPlan);
@@ -261,6 +264,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		return Optional.ofNullable(stateBackendName);
 	}
 
+	@Override
+	public ClusterPartitionReport getClusterPartitionReport() {
+		return this.clusterPartitionReport;
+	}
+
 	class AllVerticesIterator implements Iterator<ArchivedExecutionVertex> {
 
 		private final Iterator<ArchivedExecutionJobVertex> jobVertices;
@@ -340,6 +348,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			archivedTasks,
 			archivedVerticesInCreationOrder,
 			timestamps,
+			executionGraph.getClusterPartitionReport(),
 			executionGraph.getState(),
 			executionGraph.getFailureInfo(),
 			executionGraph.getJsonPlan(),
