@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ClusterPartitionDescriptor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
@@ -62,6 +63,7 @@ public class TaskDeploymentDescriptorFactory {
 	private final boolean allowUnknownPartitions;
 	private final int subtaskIndex;
 	private final ExecutionEdge[][] inputEdges;
+	private Collection<ClusterPartitionDescriptor> clusterPartitionInput;
 
 	private TaskDeploymentDescriptorFactory(
 			ExecutionAttemptID executionId,
@@ -71,7 +73,8 @@ public class TaskDeploymentDescriptorFactory {
 			JobID jobID,
 			boolean allowUnknownPartitions,
 			int subtaskIndex,
-			ExecutionEdge[][] inputEdges) {
+			ExecutionEdge[][] inputEdges,
+			Collection<ClusterPartitionDescriptor> clusterPartitionInput) {
 		this.executionId = executionId;
 		this.attemptNumber = attemptNumber;
 		this.serializedJobInformation = serializedJobInformation;
@@ -80,6 +83,7 @@ public class TaskDeploymentDescriptorFactory {
 		this.allowUnknownPartitions = allowUnknownPartitions;
 		this.subtaskIndex = subtaskIndex;
 		this.inputEdges = inputEdges;
+		this.clusterPartitionInput = clusterPartitionInput;
 	}
 
 	public TaskDeploymentDescriptor createDeploymentDescriptor(
@@ -123,6 +127,20 @@ public class TaskDeploymentDescriptorFactory {
 				getConsumedPartitionShuffleDescriptors(edges)));
 		}
 
+		if (clusterPartitionInput != null) {
+			final ClusterPartitionDescriptor clusterPartitionDescriptor = clusterPartitionInput.iterator().next();
+			int queueToRequest = subtaskIndex % clusterPartitionDescriptor.getNumberOfSubpartitions();
+			final ShuffleDescriptor[] shuffleDescriptors = clusterPartitionInput.stream()
+				.map(ClusterPartitionDescriptor::getShuffleDescriptor)
+				.toArray(ShuffleDescriptor[]::new);
+			inputGates.add(new InputGateDeploymentDescriptor(
+				clusterPartitionDescriptor.getIntermediateDataSetID(),
+				clusterPartitionDescriptor.getPartitionType(),
+				queueToRequest,
+				shuffleDescriptors
+			));
+		}
+
 		return inputGates;
 	}
 
@@ -148,7 +166,8 @@ public class TaskDeploymentDescriptorFactory {
 			executionGraph.getJobID(),
 			executionGraph.getScheduleMode().allowLazyDeployment(),
 			executionVertex.getParallelSubtaskIndex(),
-			executionVertex.getAllInputEdges());
+			executionVertex.getAllInputEdges(),
+			executionVertex.getJobVertex().getJobVertex().getClusterPartitionInput());
 	}
 
 	private static MaybeOffloaded<JobInformation> getSerializedJobInformation(ExecutionGraph executionGraph) {
