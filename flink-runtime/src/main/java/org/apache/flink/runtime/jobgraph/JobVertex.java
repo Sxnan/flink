@@ -23,6 +23,7 @@ import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
+import org.apache.flink.runtime.executiongraph.ClusterPartitionDescriptor;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
@@ -34,6 +35,7 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -122,6 +124,8 @@ public class JobVertex implements java.io.Serializable {
 
 	/** The input dependency constraint to schedule this vertex. */
 	private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
+
+	private Collection<ClusterPartitionDescriptor> clusterPartitionInput = null;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -493,6 +497,13 @@ public class JobVertex implements java.io.Serializable {
 		return edge;
 	}
 
+	public void connectClusterPartitionInput(
+		Collection<ClusterPartitionDescriptor> clusterPartitionDescriptors) {
+		this.clusterPartitionInput = clusterPartitionDescriptors;
+		final int numberOfSubpartitions = clusterPartitionDescriptors.iterator().next().getNumberOfSubpartitions();
+		setParallelism(numberOfSubpartitions);
+	}
+
 	public void connectIdInput(IntermediateDataSetID dataSetId, DistributionPattern distPattern) {
 		JobEdge edge = new JobEdge(dataSetId, this, distPattern);
 		this.inputs.add(edge);
@@ -590,4 +601,9 @@ public class JobVertex implements java.io.Serializable {
 	public String toString() {
 		return this.name + " (" + this.invokableClassName + ')';
 	}
+
+	public Collection<ClusterPartitionDescriptor> getClusterPartitionInput() {
+		return clusterPartitionInput;
+	}
+
 }
