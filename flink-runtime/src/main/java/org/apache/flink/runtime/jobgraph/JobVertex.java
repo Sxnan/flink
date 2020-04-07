@@ -37,7 +37,9 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -499,9 +501,13 @@ public class JobVertex implements java.io.Serializable {
 
 	public void connectClusterPartitionInput(
 		Collection<ClusterPartitionDescriptor> clusterPartitionDescriptors) {
+		Preconditions.checkState(!clusterPartitionDescriptors.isEmpty(),
+			"ClusterPartitionDescriptor could not be empty");
 		this.clusterPartitionInput = clusterPartitionDescriptors;
-		final int numberOfSubpartitions = clusterPartitionDescriptors.iterator().next().getNumberOfSubpartitions();
-		setParallelism(numberOfSubpartitions);
+		final Optional<Integer> numberOfSubpartitions = clusterPartitionDescriptors.stream()
+			.map(ClusterPartitionDescriptor::getNumberOfSubpartitions)
+			.max(Comparator.naturalOrder());
+		numberOfSubpartitions.ifPresent(this::setParallelism);
 	}
 
 	public void connectIdInput(IntermediateDataSetID dataSetId, DistributionPattern distPattern) {

@@ -129,14 +129,15 @@ public class TaskDeploymentDescriptorFactory {
 
 		if (clusterPartitionInput != null) {
 			final ClusterPartitionDescriptor clusterPartitionDescriptor = clusterPartitionInput.iterator().next();
-			int queueToRequest = subtaskIndex % clusterPartitionDescriptor.getNumberOfSubpartitions();
+
 			final ShuffleDescriptor[] shuffleDescriptors = clusterPartitionInput.stream()
+				.filter(clusterPartition -> clusterPartition.getNumberOfSubpartitions() > subtaskIndex)
 				.map(ClusterPartitionDescriptor::getShuffleDescriptor)
 				.toArray(ShuffleDescriptor[]::new);
 			inputGates.add(new InputGateDeploymentDescriptor(
 				clusterPartitionDescriptor.getIntermediateDataSetID(),
 				clusterPartitionDescriptor.getPartitionType(),
-				queueToRequest,
+				subtaskIndex,
 				shuffleDescriptors
 			));
 		}
