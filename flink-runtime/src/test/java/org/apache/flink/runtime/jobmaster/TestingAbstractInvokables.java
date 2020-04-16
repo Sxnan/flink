@@ -23,7 +23,10 @@ import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.ReduceDriver;
 import org.apache.flink.types.IntValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -82,6 +85,34 @@ public class TestingAbstractInvokables {
 
 			if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
 				throw new Exception("Wrong data received.");
+			}
+		}
+	}
+
+	public static class PrintReceiver extends AbstractInvokable {
+		private static final Logger LOG = LoggerFactory.getLogger(PrintReceiver.class);
+
+		/**
+		 * Create an Invokable task and set its environment.
+		 *
+		 * @param environment The environment assigned to this invokable.
+		 */
+		public PrintReceiver(Environment environment) {
+			super(environment);
+		}
+
+		@Override
+		public void invoke() throws Exception {
+			final RecordReader<IntValue> reader = new RecordReader<>(
+				getEnvironment().getInputGate(0),
+				IntValue.class,
+				getEnvironment().getTaskManagerInfo().getTmpDirectories());
+
+			IntValue i = reader.next();
+			while (i != null) {
+//				LOG.info("read {}", i);
+				System.out.println(i);
+				i = reader.next();
 			}
 		}
 	}

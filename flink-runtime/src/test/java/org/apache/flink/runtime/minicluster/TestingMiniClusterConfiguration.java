@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.Preconditions;
@@ -66,6 +67,7 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 		private RpcServiceSharing rpcServiceSharing = SHARED;
 		private int numberDispatcherResourceManagerComponents = 1;
 		private boolean localCommunication = false;
+		private boolean releasePartitionDuringExecution = true;
 
 		@Nullable
 		private String commonBindAddress = null;
@@ -105,6 +107,11 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 			return this;
 		}
 
+		public Builder setReleasePartitionDuringExecution(boolean releasePartitionDuringExecution) {
+			this.releasePartitionDuringExecution = releasePartitionDuringExecution;
+			return this;
+		}
+
 		public TestingMiniClusterConfiguration build() {
 			final Configuration modifiedConfiguration = new Configuration(configuration);
 			modifiedConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
@@ -114,6 +121,8 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 			modifiedConfiguration.setInteger(
 				RestOptions.PORT,
 				modifiedConfiguration.getInteger(RestOptions.PORT, 0));
+			modifiedConfiguration.setBoolean(JobManagerOptions.PARTITION_RELEASE_DURING_JOB_EXECUTION,
+				releasePartitionDuringExecution);
 
 			return new TestingMiniClusterConfiguration(
 				modifiedConfiguration,
@@ -123,5 +132,7 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 				numberDispatcherResourceManagerComponents,
 				localCommunication);
 		}
+
+
 	}
 }
