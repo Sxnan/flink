@@ -1742,13 +1742,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	public ClusterPartitionReport getClusterPartitionReport() {
 		Collection<IntermediateDataSetID> clusterPartitions = getClusterPartitions();
 
-		HashMap<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> map =
+		HashMap<IntermediateDataSetID, Collection<ClusterPartitionDescriptorImpl>> map =
 			new HashMap<>(clusterPartitions.size());
 		for (IntermediateDataSetID id : clusterPartitions) {
 			final IntermediateResult intermediateResult = intermediateResults.get(id);
 			final IntermediateResultPartition[] partitions = intermediateResult.getPartitions();
 
-			Set<ClusterPartitionDescriptor> shuffleDescriptorSet = new HashSet<>();
+			Set<ClusterPartitionDescriptorImpl> shuffleDescriptorSet = new HashSet<>();
 
 			for (IntermediateResultPartition partition : partitions) {
 				PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
@@ -1759,7 +1759,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 				try {
 					final ShuffleDescriptor shuffleDescriptor = shuffleMaster.registerPartitionWithProducer(partitionDescriptor, producerDescriptor).get();
-					shuffleDescriptorSet.add(new ClusterPartitionDescriptor(shuffleDescriptor,
+					shuffleDescriptorSet.add(new ClusterPartitionDescriptorImpl(shuffleDescriptor,
 						partitionDescriptor.getNumberOfSubpartitions(),
 						partitionDescriptor.getPartitionType(),
 						partitionDescriptor.getResultId()));

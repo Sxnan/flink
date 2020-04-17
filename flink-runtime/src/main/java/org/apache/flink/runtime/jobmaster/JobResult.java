@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.PersistentIntermediateResultStore;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -136,7 +137,7 @@ public class JobResult implements Serializable {
 				netRuntime,
 				AccumulatorHelper.deserializeAccumulators(
 					accumulatorResults,
-					classLoader));
+					classLoader), getIntermediateResultStore());
 		} else {
 			final Throwable cause;
 
@@ -158,6 +159,15 @@ public class JobResult implements Serializable {
 
 			throw exception;
 		}
+	}
+
+	private PersistentIntermediateResultStore getIntermediateResultStore() {
+		try {
+			return clusterPartitionReport.toPersistentIntermediateResultStore();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 	public ClusterPartitionReport getClusterPartitionReport() {

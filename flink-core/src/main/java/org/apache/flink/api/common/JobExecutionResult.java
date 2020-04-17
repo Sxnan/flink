@@ -39,16 +39,23 @@ public class JobExecutionResult extends JobSubmissionResult {
 
 	private final Map<String, OptionalFailure<Object>> accumulatorResults;
 
+	private final PersistentIntermediateResultStore intermediateResultStore;
+
+	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators) {
+		this(jobID, netRuntime, accumulators, null);
+	}
+
 	/**
 	 * Creates a new JobExecutionResult.
-	 *
-	 * @param jobID The job's ID.
+	 *  @param jobID The job's ID.
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer) in milliseconds
 	 * @param accumulators A map of all accumulators produced by the job.
+	 * @param intermediateResultStore
 	 */
-	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators) {
+	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators, PersistentIntermediateResultStore intermediateResultStore) {
 		super(jobID);
 		this.netRuntime = netRuntime;
+		this.intermediateResultStore = intermediateResultStore;
 
 		if (accumulators != null) {
 			this.accumulatorResults = accumulators;
@@ -165,5 +172,9 @@ public class JobExecutionResult extends JobSubmissionResult {
 	@Deprecated
 	public static JobExecutionResult fromJobSubmissionResult(JobSubmissionResult result) {
 		return new JobExecutionResult(result.getJobID(), -1, null);
+	}
+
+	public PersistentIntermediateResultStore getIntermediateResultStore() {
+		return intermediateResultStore;
 	}
 }
