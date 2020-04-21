@@ -130,10 +130,13 @@ public class StreamingJobGraphGenerator {
 	private final StreamGraphHasher defaultStreamGraphHasher;
 	private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
+	private final CacheIntermediateResultProcessor cacheIntermediateResultProcessor;
+
 	private StreamingJobGraphGenerator(StreamGraph streamGraph, @Nullable JobID jobID) {
 		this.streamGraph = streamGraph;
 		this.defaultStreamGraphHasher = new StreamGraphHasherV2();
 		this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphUserHashHasher());
+		this.cacheIntermediateResultProcessor = new CacheIntermediateResultProcessor();
 
 		this.jobVertices = new HashMap<>();
 		this.builtVertices = new HashSet<>();
@@ -150,6 +153,8 @@ public class StreamingJobGraphGenerator {
 
 	private JobGraph createJobGraph() {
 		preValidate();
+
+		cacheIntermediateResultProcessor.process(streamGraph);
 
 		// make sure that all vertices start immediately
 		jobGraph.setScheduleMode(streamGraph.getScheduleMode());
@@ -582,6 +587,10 @@ public class StreamingJobGraphGenerator {
 					edge.getShuffleMode() + " is not supported yet.");
 		}
 
+		if (edge.isPersistent()) {
+			resultPartitionType = ResultPartitionType.BLOCKING_PERSISTENT;
+		}
+
 		JobEdge jobEdge;
 		if (isPointwisePartitioner(partitioner)) {
 			jobEdge = downStreamVertex.connectNewDataSetAsInput(
@@ -640,7 +649,8 @@ public class StreamingJobGraphGenerator {
 				&& (edge.getPartitioner() instanceof ForwardPartitioner)
 				&& edge.getShuffleMode() != ShuffleMode.BATCH
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-				&& streamGraph.isChainingEnabled();
+				&& streamGraph.isChainingEnabled()
+				&& !edge.isPersistent();
 	}
 
 	@VisibleForTesting

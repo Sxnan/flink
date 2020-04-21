@@ -789,7 +789,7 @@ public class StreamGraph implements Pipeline {
 		getTargetVertex(edge).getInEdges().remove(edge);
 	}
 
-	private void removeVertex(StreamNode toRemove) {
+	public void removeVertex(StreamNode toRemove) {
 		Set<StreamEdge> edgesToRemove = new HashSet<>();
 
 		edgesToRemove.addAll(toRemove.getInEdges());

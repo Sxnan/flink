@@ -75,6 +75,8 @@ public class StreamEdge implements Serializable {
 
 	private final ShuffleMode shuffleMode;
 
+	private boolean isPersistent;
+
 	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
 			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag) {
 		this(sourceVertex,
@@ -159,5 +161,13 @@ public class StreamEdge implements Serializable {
 		return "(" + (sourceOperatorName + "-" + sourceId) + " -> " + (targetOperatorName + "-" + targetId)
 			+ ", typeNumber=" + typeNumber + ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
 			+ ", outputTag=" + outputTag + ')';
+	}
+
+	public boolean isPersistent() {
+		return isPersistent;
+	}
+
+	public void setPersistent(boolean persistent) {
+		isPersistent = persistent;
 	}
 }
