@@ -17,4 +17,4 @@ org.apache.flink.table.sources.CsvBatchTableSourceFactory
 org.apache.flink.table.sources.CsvAppendTableSourceFactory
 org.apache.flink.table.sinks.CsvBatchTableSinkFactory
 org.apache.flink.table.sinks.CsvAppendTableSinkFactory
-org.apache.flink.table.sinks.CacheTableFactory
+org.apache.flink.table.sinks.CacheTableSinkFactory

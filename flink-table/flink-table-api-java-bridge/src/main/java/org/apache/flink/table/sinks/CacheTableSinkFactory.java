@@ -17,7 +17,7 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR;
 
-public class CacheTableFactory<T> implements TableSinkFactory<T> {
+public class CacheTableSinkFactory<T> implements TableSinkFactory<T> {
 	private static final String CONNECTOR_VALUE = "cache";
 
 	@Override
