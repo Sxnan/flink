@@ -33,6 +33,8 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WindowGroupedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
@@ -44,10 +46,13 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
+import org.apache.flink.util.AbstractID;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -66,6 +71,8 @@ public class TableImpl implements Table {
 	private final LookupCallResolver lookupResolver;
 
 	private String tableName = null;
+
+	private boolean cached = false;
 
 	public TableEnvironment getTableEnvironment() {
 		return tableEnvironment;
@@ -524,6 +531,37 @@ public class TableImpl implements Table {
 	@Override
 	public FlatAggregateTable flatAggregate(Expression tableAggregateFunction) {
 		return groupBy().flatAggregate(tableAggregateFunction);
+	}
+
+	@Override
+	public Table cache() {
+		if (this.isCached()) {
+			return this;
+		}
+
+		AbstractID id = new AbstractID();
+		tableEnvironment.getCacheManager().addTableToCache(id , this);
+		String cacheTableName = "id" + id.toHexString();
+
+		tableEnvironment.connect(new ConnectorDescriptor("cache", 1, false) {
+			@Override
+			protected Map<String, String> toConnectorProperties() {
+				Map<String, String> map = new HashMap<>();
+				map.put("connector", "cache");
+				map.put("upper", Long.toString(id.getUpperPart()));
+				map.put("lower", Long.toString(id.getLowerPart()));
+				return map;
+			}
+		}).withSchema(new Schema().schema(this.getSchema()))
+		.createTemporaryTable(cacheTableName);
+
+		this.insertInto(cacheTableName);
+		return this;
+	}
+
+	@Override
+	public boolean isCached() {
+		return cached;
 	}
 
 	@Override

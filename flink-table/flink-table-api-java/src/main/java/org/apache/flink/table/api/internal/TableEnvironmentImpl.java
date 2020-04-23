@@ -21,9 +21,11 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.PersistentIntermediateResultStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.api.CacheManager;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ResultKind;
@@ -60,6 +62,7 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
@@ -107,6 +110,7 @@ import org.apache.flink.types.Row;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -127,6 +131,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	private final ModuleManager moduleManager;
 	private final OperationTreeBuilder operationTreeBuilder;
 	private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
+	private final CacheManager cacheManager = new CacheManager();
 
 	protected final TableConfig tableConfig;
 	protected final Executor execEnv;
@@ -846,7 +851,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Pipeline pipeline = execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
-		return execEnv.execute(pipeline);
+		final JobExecutionResult result = execEnv.execute(pipeline);
+
+		final PersistentIntermediateResultStore intermediateResultStore =
+			result.getIntermediateResultStore();
+
+		intermediateResultStore.getMap().forEach(cacheManager::tableCached);
+
+		return result;
 	}
 
 	/**
@@ -1083,5 +1095,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			tableOperation,
 			operationTreeBuilder,
 			functionCatalog.asLookup(parser::parseIdentifier));
+	}
+
+	@Override
+	public CacheManager getCacheManager() {
+		return cacheManager;
 	}
 }

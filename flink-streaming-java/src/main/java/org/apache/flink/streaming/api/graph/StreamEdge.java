@@ -18,8 +18,10 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.OutputTag;
 
 import java.io.Serializable;
@@ -75,7 +77,9 @@ public class StreamEdge implements Serializable {
 
 	private final ShuffleMode shuffleMode;
 
-	private boolean isPersistent;
+	private boolean isPersistent = false;
+
+	private AbstractID intermediateResultID = null;
 
 	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
 			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag) {
@@ -169,5 +173,13 @@ public class StreamEdge implements Serializable {
 
 	public void setPersistent(boolean persistent) {
 		isPersistent = persistent;
+	}
+
+	public AbstractID getIntermediateResultID() {
+		return intermediateResultID;
+	}
+
+	public void setIntermediateResultID(AbstractID intermediateResultID) {
+		this.intermediateResultID = intermediateResultID;
 	}
 }

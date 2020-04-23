@@ -141,9 +141,6 @@ public class ExecutionEnvironment {
 
 	private final List<JobListener> jobListeners = new ArrayList<>();
 
-	protected PersistentIntermediateResultStore persistentIntermediateResultStore =
-		new PersistentIntermediateResultStore();
-
 	/**
 	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link Configuration} to
 	 * configure the {@link PipelineExecutor}.
@@ -891,9 +888,6 @@ public class ExecutionEnvironment {
 			ExceptionUtils.rethrowException(t);
 		}
 
-		this.persistentIntermediateResultStore
-			.combine(lastJobExecutionResult.getIntermediateResultStore());
-
 		return lastJobExecutionResult;
 	}
 
@@ -1341,9 +1335,5 @@ public class ExecutionEnvironment {
 	@Internal
 	public static boolean areExplicitEnvironmentsAllowed() {
 		return contextEnvironmentFactory == null && threadLocalContextEnvironmentFactory.get() == null;
-	}
-
-	public PersistentIntermediateResultStore getPersistentIntermediateResultStore() {
-		return persistentIntermediateResultStore;
 	}
 }

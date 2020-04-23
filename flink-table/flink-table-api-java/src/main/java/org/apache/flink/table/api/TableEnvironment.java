@@ -1112,4 +1112,6 @@ public interface TableEnvironment {
 	 * @throws Exception which occurs during job execution.
 	 */
 	JobExecutionResult execute(String jobName) throws Exception;
+
+	CacheManager getCacheManager();
 }

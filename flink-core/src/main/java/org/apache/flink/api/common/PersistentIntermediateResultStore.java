@@ -19,7 +19,7 @@ public class PersistentIntermediateResultStore {
 		this.map = map;
 	}
 
-	public void combine(PersistentIntermediateResultStore other) {
-		other.map.forEach(map::putIfAbsent);
+	public Map<AbstractID, Collection<SerializedValue<ClusterPartitionDescriptor>>> getMap() {
+		return map;
 	}
 }

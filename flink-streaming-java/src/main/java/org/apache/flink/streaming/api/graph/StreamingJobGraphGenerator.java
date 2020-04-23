@@ -31,6 +31,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphUtils;
@@ -587,21 +589,23 @@ public class StreamingJobGraphGenerator {
 					edge.getShuffleMode() + " is not supported yet.");
 		}
 
+
+		IntermediateDataSet intermediateDataSet;
 		if (edge.isPersistent()) {
 			resultPartitionType = ResultPartitionType.BLOCKING_PERSISTENT;
+			IntermediateDataSetID intermediateDataSetID =
+				new IntermediateDataSetID(edge.getIntermediateResultID());
+			intermediateDataSet = headVertex.createAndAddResultDataSet(intermediateDataSetID,
+				resultPartitionType);
+		} else {
+			intermediateDataSet = headVertex.createAndAddResultDataSet(resultPartitionType);
 		}
 
 		JobEdge jobEdge;
-		if (isPointwisePartitioner(partitioner)) {
-			jobEdge = downStreamVertex.connectNewDataSetAsInput(
-				headVertex,
-				DistributionPattern.POINTWISE,
-				resultPartitionType);
+		if (partitioner instanceof ForwardPartitioner || partitioner instanceof RescalePartitioner) {
+				jobEdge = downStreamVertex.connectDataSetAsInput(intermediateDataSet, DistributionPattern.POINTWISE);
 		} else {
-			jobEdge = downStreamVertex.connectNewDataSetAsInput(
-					headVertex,
-					DistributionPattern.ALL_TO_ALL,
-					resultPartitionType);
+			jobEdge = downStreamVertex.connectDataSetAsInput(intermediateDataSet, DistributionPattern.ALL_TO_ALL);
 		}
 		// set strategy name so that web interface can show it.
 		jobEdge.setShipStrategyName(partitioner.toString());
@@ -650,7 +654,16 @@ public class StreamingJobGraphGenerator {
 				&& edge.getShuffleMode() != ShuffleMode.BATCH
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
 				&& streamGraph.isChainingEnabled()
-				&& !edge.isPersistent();
+				&& !isPersist(upStreamVertex);
+	}
+
+	private static boolean isPersist(StreamNode upStreamVertex) {
+		for (StreamEdge outEdge : upStreamVertex.getOutEdges()) {
+			if (outEdge.isPersistent()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@VisibleForTesting

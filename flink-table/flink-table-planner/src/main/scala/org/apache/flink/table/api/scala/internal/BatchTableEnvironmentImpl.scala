@@ -102,5 +102,7 @@ class BatchTableEnvironmentImpl(
       moduleManager
     )
   }
+
+  override def getCacheManager: CacheManager = ???
 }
 

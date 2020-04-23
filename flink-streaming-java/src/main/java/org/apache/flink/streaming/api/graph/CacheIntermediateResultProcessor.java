@@ -1,11 +1,14 @@
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
 import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayDeque;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
@@ -25,10 +28,19 @@ public class CacheIntermediateResultProcessor {
 			StreamNode blockingSink = getBlockingSink(streamGraph, currentNode);
 			if (blockingSink != null) {
 				streamGraph.removeVertex(blockingSink);
-			}
+				final List<StreamEdge> inEdges = currentNode.getInEdges();
+				Preconditions.checkState(inEdges.size() == 1, "Should only have one input edge");
+				StreamNode upstreamNode = streamGraph.getSourceVertex(inEdges.iterator().next());
+				streamGraph.removeVertex(currentNode);
+				StreamEdge persistentEdge = upstreamNode.getOutEdges().iterator().next();
+				persistentEdge.setPersistent(true);
 
+				final BlockingShuffleOutputFormat<?> outputFormat =
+					(BlockingShuffleOutputFormat)((OutputFormatOperatorFactory<?>) blockingSink.getOperatorFactory()).getOutputFormat();
+
+				persistentEdge.setIntermediateResultID(outputFormat.getIntermediateDataSetId());
+			}
 			for (StreamEdge outEdges : currentNode.getOutEdges()) {
-				outEdges.setPersistent(true);
 				final StreamNode targetVertex = streamGraph.getTargetVertex(outEdges);
 				Integer id = targetVertex.getId();
 				if (!visited.contains(id)) {
