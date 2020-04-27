@@ -4,7 +4,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.types.DataType;

@@ -540,7 +540,6 @@ public class TableImpl implements Table {
 		}
 
 		AbstractID id = new AbstractID();
-		tableEnvironment.getCacheManager().addTableToCache(id , this);
 		String cacheTableName = "id" + id.toHexString();
 
 		tableEnvironment.connect(new ConnectorDescriptor("cache", 1, false) {
@@ -556,7 +555,10 @@ public class TableImpl implements Table {
 		.createTemporaryTable(cacheTableName);
 
 		this.insertInto(cacheTableName);
-		return this;
+		Table cachedTable = tableEnvironment.from(cacheTableName);
+		tableEnvironment.getCacheManager().addTableToCache(id , cachedTable);
+
+		return cachedTable;
 	}
 
 	@Override
