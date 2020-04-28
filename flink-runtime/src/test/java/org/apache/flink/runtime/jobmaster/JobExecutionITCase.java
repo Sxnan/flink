@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
-import org.apache.flink.runtime.executiongraph.ClusterPartitionDescriptorImpl;
 import org.apache.flink.runtime.executiongraph.ClusterPartitionReport;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -138,7 +138,7 @@ public class JobExecutionITCase extends TestLogger {
 		return createFirstJobGraph(1, 1);
 	}
 
-	private JobGraph createSecondJobGraph(Collection<ClusterPartitionDescriptorImpl> clusterPartitions) {
+	private JobGraph createSecondJobGraph(Collection<ClusterPartitionDescriptor> clusterPartitions) {
 		final JobVertex noop = new JobVertex("No op");
 		noop.connectClusterPartitionInput(clusterPartitions);
 		noop.setInvokableClass(BatchTask.class);

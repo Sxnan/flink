@@ -15,24 +15,24 @@ import java.util.Map;
 
 public class ClusterPartitionReport implements Serializable {
 
-	private HashMap<IntermediateDataSetID, Collection<ClusterPartitionDescriptorImpl>> map;
+	private HashMap<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> map;
 
-	public ClusterPartitionReport(HashMap<IntermediateDataSetID, Collection<ClusterPartitionDescriptorImpl>> map) {
+	public ClusterPartitionReport(HashMap<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> map) {
 		this.map = map;
 	}
 
-	public Collection<ClusterPartitionDescriptorImpl> getClusterPartitionDescriptor(IntermediateDataSetID id) {
+	public Collection<ClusterPartitionDescriptor> getClusterPartitionDescriptor(IntermediateDataSetID id) {
 		return map.getOrDefault(id, null);
 	}
 
-	public Collection<ClusterPartitionDescriptorImpl> getClusterPartitionDescriptor() {
+	public Collection<ClusterPartitionDescriptor> getClusterPartitionDescriptor() {
 		return map.values().iterator().next();
 	}
 
 	public PersistentIntermediateResultStore toPersistentIntermediateResultStore() throws IOException {
 		Map<AbstractID, Collection<SerializedValue<ClusterPartitionDescriptor>>> res = new HashMap<>();
-		for (Map.Entry<IntermediateDataSetID, Collection<ClusterPartitionDescriptorImpl>> entry : map.entrySet()) {
-			Collection<ClusterPartitionDescriptorImpl> clusterPartitionDescriptors = entry.getValue();
+		for (Map.Entry<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> entry : map.entrySet()) {
+			Collection<ClusterPartitionDescriptor> clusterPartitionDescriptors = entry.getValue();
 			Collection<SerializedValue<ClusterPartitionDescriptor>> value = new HashSet<>();
 			for (ClusterPartitionDescriptor clusterPartitionDescriptor : clusterPartitionDescriptors) {
 				value.add(new SerializedValue<>(clusterPartitionDescriptor));

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -63,18 +64,18 @@ public class TaskDeploymentDescriptorFactory {
 	private final boolean allowUnknownPartitions;
 	private final int subtaskIndex;
 	private final ExecutionEdge[][] inputEdges;
-	private Collection<ClusterPartitionDescriptorImpl> clusterPartitionInput;
+	private Collection<ClusterPartitionDescriptor> clusterPartitionInput;
 
 	private TaskDeploymentDescriptorFactory(
-			ExecutionAttemptID executionId,
-			int attemptNumber,
-			MaybeOffloaded<JobInformation> serializedJobInformation,
-			MaybeOffloaded<TaskInformation> taskInfo,
-			JobID jobID,
-			boolean allowUnknownPartitions,
-			int subtaskIndex,
-			ExecutionEdge[][] inputEdges,
-			Collection<ClusterPartitionDescriptorImpl> clusterPartitionInput) {
+		ExecutionAttemptID executionId,
+		int attemptNumber,
+		MaybeOffloaded<JobInformation> serializedJobInformation,
+		MaybeOffloaded<TaskInformation> taskInfo,
+		JobID jobID,
+		boolean allowUnknownPartitions,
+		int subtaskIndex,
+		ExecutionEdge[][] inputEdges,
+		Collection<ClusterPartitionDescriptor> clusterPartitionInput) {
 		this.executionId = executionId;
 		this.attemptNumber = attemptNumber;
 		this.serializedJobInformation = serializedJobInformation;
@@ -128,11 +129,12 @@ public class TaskDeploymentDescriptorFactory {
 		}
 
 		if (clusterPartitionInput != null) {
-			final ClusterPartitionDescriptorImpl clusterPartitionDescriptor = clusterPartitionInput.iterator().next();
+			final ClusterPartitionDescriptorImpl clusterPartitionDescriptor
+				= (ClusterPartitionDescriptorImpl) clusterPartitionInput.iterator().next();
 
 			final ShuffleDescriptor[] shuffleDescriptors = clusterPartitionInput.stream()
 				.filter(clusterPartition -> clusterPartition.getNumberOfSubpartitions() > subtaskIndex)
-				.map(ClusterPartitionDescriptorImpl::getShuffleDescriptor)
+				.map(descriptor -> ((ClusterPartitionDescriptorImpl)descriptor).getShuffleDescriptor())
 				.toArray(ShuffleDescriptor[]::new);
 			inputGates.add(new InputGateDeploymentDescriptor(
 				clusterPartitionDescriptor.getIntermediateDataSetID(),

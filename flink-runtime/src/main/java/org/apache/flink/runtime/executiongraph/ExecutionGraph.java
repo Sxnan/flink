@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
+import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -1742,13 +1743,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	public ClusterPartitionReport getClusterPartitionReport() {
 		Collection<IntermediateDataSetID> clusterPartitions = getClusterPartitions();
 
-		HashMap<IntermediateDataSetID, Collection<ClusterPartitionDescriptorImpl>> map =
+		HashMap<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> map =
 			new HashMap<>(clusterPartitions.size());
 		for (IntermediateDataSetID id : clusterPartitions) {
 			final IntermediateResult intermediateResult = intermediateResults.get(id);
 			final IntermediateResultPartition[] partitions = intermediateResult.getPartitions();
 
-			Set<ClusterPartitionDescriptorImpl> shuffleDescriptorSet = new HashSet<>();
+			Set<ClusterPartitionDescriptor> shuffleDescriptorSet = new HashSet<>();
 
 			for (IntermediateResultPartition partition : partitions) {
 				PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);

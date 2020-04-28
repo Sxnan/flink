@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -121,7 +122,7 @@ public class JobVertex implements java.io.Serializable {
 	/** The input dependency constraint to schedule this vertex. */
 	private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
 
-	private Collection<ClusterPartitionDescriptorImpl> clusterPartitionInput = null;
+	private Collection<ClusterPartitionDescriptor> clusterPartitionInput = null;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -494,12 +495,12 @@ public class JobVertex implements java.io.Serializable {
 	}
 
 	public void connectClusterPartitionInput(
-		Collection<ClusterPartitionDescriptorImpl> clusterPartitionDescriptors) {
+		Collection<ClusterPartitionDescriptor> clusterPartitionDescriptors) {
 		Preconditions.checkState(!clusterPartitionDescriptors.isEmpty(),
 			"ClusterPartitionDescriptor could not be empty");
 		this.clusterPartitionInput = clusterPartitionDescriptors;
 		final Optional<Integer> numberOfSubpartitions = clusterPartitionDescriptors.stream()
-			.map(ClusterPartitionDescriptorImpl::getNumberOfSubpartitions)
+			.map(ClusterPartitionDescriptor::getNumberOfSubpartitions)
 			.max(Comparator.naturalOrder());
 		numberOfSubpartitions.ifPresent(this::setParallelism);
 	}
@@ -602,7 +603,7 @@ public class JobVertex implements java.io.Serializable {
 		return this.name + " (" + this.invokableClassName + ')';
 	}
 
-	public Collection<ClusterPartitionDescriptorImpl> getClusterPartitionInput() {
+	public Collection<ClusterPartitionDescriptor> getClusterPartitionInput() {
 		return clusterPartitionInput;
 	}
 
