@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -453,6 +454,7 @@ public class StreamingJobGraphGenerator {
 					userDefinedChainedOperatorVertexIds);
 		}
 
+
 		jobVertex.setResources(chainedMinResources.get(streamNodeId), chainedPreferredResources.get(streamNodeId));
 
 		jobVertex.setInvokableClass(streamNode.getJobVertexClass());
@@ -477,6 +479,24 @@ public class StreamingJobGraphGenerator {
 		jobVertices.put(streamNodeId, jobVertex);
 		builtVertices.add(streamNodeId);
 		jobGraph.addVertex(jobVertex);
+
+		final Collection<SerializedValue<ClusterPartitionDescriptor>> clusterPartitionDescriptor
+			= streamNode.getClusterPartitionDescriptor();
+		if (clusterPartitionDescriptor != null) {
+			Collection<ClusterPartitionDescriptor> clusterPartitionDescriptors = new ArrayList<>();
+
+			for (SerializedValue<ClusterPartitionDescriptor> descriptorSerializedValue : clusterPartitionDescriptor) {
+				try {
+					clusterPartitionDescriptors.add(descriptorSerializedValue.deserializeValue(this.getClass().getClassLoader()));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+			jobVertex.connectClusterPartitionInput(clusterPartitionDescriptors);
+			final StreamConfig streamConfig = new StreamConfig(jobVertex.getConfiguration());
+			streamConfig.setNumberOfInputs(1);
+			return streamConfig;
+		}
 
 		return new StreamConfig(jobVertex.getConfiguration());
 	}

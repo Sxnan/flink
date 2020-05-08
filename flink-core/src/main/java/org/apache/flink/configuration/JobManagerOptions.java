@@ -331,7 +331,7 @@ public class JobManagerOptions {
 		"We aim at removing this flag eventually.")
 	public static final ConfigOption<Boolean> PARTITION_RELEASE_DURING_JOB_EXECUTION =
 		key("jobmanager.partition.release-during-job-execution")
-			.defaultValue(true)
+			.defaultValue(false)
 			.withDescription("Controls whether partitions should already be released during the job execution.");
 
 	// ---------------------------------------------------------------------------------------------

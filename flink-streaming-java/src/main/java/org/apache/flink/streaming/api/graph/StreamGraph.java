@@ -287,6 +287,24 @@ public class StreamGraph implements Pipeline {
 		}
 	}
 
+	public void addOperator(
+		Integer vertexID,
+		@Nullable String slotSharingGroup,
+		@Nullable String coLocationGroup,
+		StreamOperatorFactory<?> operatorFactory,
+		TypeSerializer<?> inTypeSerializer,
+		TypeSerializer<?> outTypeSerializer,
+		String operatorName) {
+
+		if (operatorFactory.isStreamSource()) {
+			addNode(vertexID, slotSharingGroup, coLocationGroup, SourceStreamTask.class, operatorFactory, operatorName);
+		} else {
+			addNode(vertexID, slotSharingGroup, coLocationGroup, OneInputStreamTask.class, operatorFactory, operatorName);
+		}
+
+		setSerializers(vertexID, inTypeSerializer, null, outTypeSerializer);
+	}
+
 	public <IN1, IN2, OUT> void addCoOperator(
 			Integer vertexID,
 			String slotSharingGroup,
@@ -828,4 +846,5 @@ public class StreamGraph implements Pipeline {
 		return typeInfo != null && !(typeInfo instanceof MissingTypeInfo) ?
 			typeInfo.createSerializer(executionConfig) : null;
 	}
+
 }

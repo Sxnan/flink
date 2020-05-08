@@ -855,14 +855,14 @@ public abstract class FileSystem {
 				switch (writeMode) {
 
 				case NO_OVERWRITE:
-					if (status.isDir() && createDirectory) {
-						return true;
-					} else {
-						// file may not be overwritten
-						throw new IOException("File or directory " + outPath + " already exists. Existing files and directories " +
-								"are not overwritten in " + WriteMode.NO_OVERWRITE.name() + " mode. Use " +
-								WriteMode.OVERWRITE.name() + " mode to overwrite existing files and directories.");
-					}
+//					if (status.isDir() && createDirectory) {
+//						return true;
+//					} else {
+//						// file may not be overwritten
+//						throw new IOException("File or directory " + outPath + " already exists. Existing files and directories " +
+//								"are not overwritten in " + WriteMode.NO_OVERWRITE.name() + " mode. Use " +
+//								WriteMode.OVERWRITE.name() + " mode to overwrite existing files and directories.");
+//					}
 
 				case OVERWRITE:
 					if (status.isDir()) {

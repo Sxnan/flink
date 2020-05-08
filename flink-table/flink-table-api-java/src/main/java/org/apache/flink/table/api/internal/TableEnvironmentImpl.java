@@ -131,7 +131,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	private final ModuleManager moduleManager;
 	private final OperationTreeBuilder operationTreeBuilder;
 	private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
-	private final CacheManager cacheManager = new CacheManager();
+	private final CacheManager cacheManager = CacheManager.getInstance();
 
 	protected final TableConfig tableConfig;
 	protected final Executor execEnv;

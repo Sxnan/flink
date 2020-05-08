@@ -26,28 +26,31 @@ public class WordCountTableBlink {
 			.withSchema(schema)
 			.createTemporaryTable("input");
 
-		tEnv.connect(new FileSystem().path("/tmp/intermediate"))
-			.withFormat(new OldCsv())
-			.withSchema(schema)
-			.createTemporaryTable("intermediate");
-
 		tEnv.connect(new FileSystem().path("/tmp/output"))
 			.withFormat(new OldCsv())
 			.withSchema(schema)
 			.createTemporaryTable("output");
 
+		tEnv.connect(new FileSystem().path("/tmp/output2"))
+			.withFormat(new OldCsv())
+			.withSchema(schema)
+			.createTemporaryTable("output2");
+
 		Table t = tEnv.from("input")
 			.groupBy("word")
-			.select("word, count.sum as count")
-			.cache();
+			.select("word, count.sum as count");
 
-		t.filter("count > 0")
-			.insertInto("intermediate");
+		Table cachedTable = t.cache();
 
 		t.filter("count = 2")
 			.insertInto("output");
 
-		tEnv.execute("hh");
+		tEnv.execute("first job");
+
+		cachedTable.filter("count > 1")
+			.insertInto("output2");
+
+		tEnv.execute("second job");
 
 	}
 

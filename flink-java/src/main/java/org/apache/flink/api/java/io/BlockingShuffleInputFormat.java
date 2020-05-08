@@ -1,14 +1,25 @@
 package org.apache.flink.api.java.io;
 
+import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
+import java.util.Collection;
 
 public class BlockingShuffleInputFormat<OT> implements InputFormat<OT, BlockingShuffleInputSplit> {
 
+
+	private Collection<SerializedValue<ClusterPartitionDescriptor>> clusterPartitionDescriptor;
+
+	public BlockingShuffleInputFormat(Collection<SerializedValue<ClusterPartitionDescriptor>> clusterPartitionDescriptor) {
+
+		this.clusterPartitionDescriptor = clusterPartitionDescriptor;
+	}
 
 	@Override
 	public void configure(Configuration parameters) {
@@ -50,4 +61,7 @@ public class BlockingShuffleInputFormat<OT> implements InputFormat<OT, BlockingS
 		throw new UnsupportedOperationException();
 	}
 
+	public Collection<SerializedValue<ClusterPartitionDescriptor>> getClusterPartitionDescriptor() {
+		return clusterPartitionDescriptor;
+	}
 }

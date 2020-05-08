@@ -54,6 +54,10 @@ public final class PerJobMiniClusterFactory {
 	private final Configuration configuration;
 	private final Function<? super MiniClusterConfiguration, ? extends MiniCluster> miniClusterFactory;
 
+	private MiniCluster miniCluster = null;
+
+	private static PerJobMiniClusterFactory INSTANCE = null;
+
 	public static PerJobMiniClusterFactory create() {
 		return new PerJobMiniClusterFactory(new Configuration(), MiniCluster::new);
 	}
@@ -61,7 +65,11 @@ public final class PerJobMiniClusterFactory {
 	public static PerJobMiniClusterFactory createWithFactory(
 			Configuration configuration,
 			Function<? super MiniClusterConfiguration, ? extends MiniCluster> miniClusterFactory) {
-		return new PerJobMiniClusterFactory(configuration, miniClusterFactory);
+//		return new PerJobMiniClusterFactory(configuration, miniClusterFactory);
+		if (INSTANCE == null) {
+			INSTANCE = new PerJobMiniClusterFactory(configuration, miniClusterFactory);
+		}
+		return INSTANCE;
 	}
 
 	private PerJobMiniClusterFactory(
@@ -75,9 +83,12 @@ public final class PerJobMiniClusterFactory {
 	 * Starts a {@link MiniCluster} and submits a job.
 	 */
 	public CompletableFuture<JobClient> submitJob(JobGraph jobGraph) throws Exception {
-		MiniClusterConfiguration miniClusterConfig = getMiniClusterConfig(jobGraph.getMaximumParallelism());
-		MiniCluster miniCluster = miniClusterFactory.apply(miniClusterConfig);
-		miniCluster.start();
+		if (miniCluster == null) {
+			MiniClusterConfiguration miniClusterConfig = getMiniClusterConfig(jobGraph.getMaximumParallelism());
+			miniCluster = miniClusterFactory.apply(miniClusterConfig);
+			miniCluster.start();
+		}
+
 
 		return miniCluster
 			.submitJob(jobGraph)
@@ -137,9 +148,9 @@ public final class PerJobMiniClusterFactory {
 			this.jobID = jobID;
 			this.miniCluster = miniCluster;
 			this.jobResultFuture = miniCluster
-				.requestJobResult(jobID)
+				.requestJobResult(jobID);
 				// Make sure to shutdown the cluster when the job completes.
-				.whenComplete((result, throwable) -> shutDownCluster(miniCluster));
+//				.whenComplete((result, throwable) -> shutDownCluster(miniCluster));
 		}
 
 		@Override

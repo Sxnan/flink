@@ -260,9 +260,9 @@ public class LocalFileSystem extends FileSystem {
 	public FSDataOutputStream create(final Path filePath, final WriteMode overwrite) throws IOException {
 		checkNotNull(filePath, "filePath");
 
-		if (exists(filePath) && overwrite == WriteMode.NO_OVERWRITE) {
-			throw new FileAlreadyExistsException("File already exists: " + filePath);
-		}
+//		if (exists(filePath) && overwrite == WriteMode.NO_OVERWRITE) {
+//			throw new FileAlreadyExistsException("File already exists: " + filePath);
+//		}
 
 		final Path parent = filePath.getParent();
 		if (parent != null && !mkdirs(parent)) {

@@ -12,9 +12,15 @@ import java.util.Map;
 public class CacheManager {
 
 	Map<String, Table> tableToCache;
-	Map<Table, Collection<SerializedValue<ClusterPartitionDescriptor>>> cachedTable;
+	Map<String, Collection<SerializedValue<ClusterPartitionDescriptor>>> cachedTable;
 
-	public CacheManager() {
+	private static CacheManager instance = new CacheManager();
+
+	public static CacheManager getInstance() {
+		return instance;
+	}
+
+	private CacheManager() {
 		tableToCache = new HashMap<>();
 		cachedTable = new HashMap<>();
 	}
@@ -28,11 +34,11 @@ public class CacheManager {
 		Preconditions.checkNotNull(table, "the table is not register to be cahced");
 		tableToCache.remove(id.toHexString());
 		final Collection<SerializedValue<ClusterPartitionDescriptor>> prev =
-			cachedTable.putIfAbsent(table, descriptor);
+			cachedTable.putIfAbsent(id.toHexString(), descriptor);
 		Preconditions.checkState(prev == null,"the table cannot be cached twice");
 	}
 
-	public Collection<SerializedValue<ClusterPartitionDescriptor>> getClusterPartitionDescriptor(Table table) {
-		return cachedTable.get(table);
+	public Collection<SerializedValue<ClusterPartitionDescriptor>> getClusterPartitionDescriptor(AbstractID id) {
+		return cachedTable.get(id.toHexString());
 	}
 }

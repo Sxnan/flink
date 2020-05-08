@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -30,11 +31,14 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -79,6 +83,8 @@ public class StreamNode implements Serializable {
 
 	private String transformationUID;
 	private String userHash;
+
+	private Collection<SerializedValue<ClusterPartitionDescriptor>> clusterPartitionDescriptor;
 
 	@VisibleForTesting
 	public StreamNode(
@@ -352,5 +358,13 @@ public class StreamNode implements Serializable {
 	@Override
 	public int hashCode() {
 		return id;
+	}
+
+	public Collection<SerializedValue<ClusterPartitionDescriptor>> getClusterPartitionDescriptor() {
+		return clusterPartitionDescriptor;
+	}
+
+	public void setClusterPartitionDescriptor(Collection<SerializedValue<ClusterPartitionDescriptor>> clusterPartitionDescriptor) {
+		this.clusterPartitionDescriptor = clusterPartitionDescriptor;
 	}
 }
