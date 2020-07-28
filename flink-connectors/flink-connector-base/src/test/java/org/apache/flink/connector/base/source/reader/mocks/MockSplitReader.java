@@ -39,7 +39,7 @@ import java.util.Map;
  */
 public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 	// Use LinkedHashMap for determinism.
-	private final Map<String, MockSourceSplit> splits = new LinkedHashMap<>();
+	protected final Map<String, MockSourceSplit> splits = new LinkedHashMap<>();
 	private final int numRecordsPerSplitPerFetch;
 	private final boolean separatedFinishedRecord;
 	private final boolean blockingFetch;
