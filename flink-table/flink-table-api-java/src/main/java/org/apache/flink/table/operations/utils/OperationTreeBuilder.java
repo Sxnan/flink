@@ -43,6 +43,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.operations.CacheQueryOperation;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
@@ -55,6 +56,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -761,6 +763,10 @@ public final class OperationTreeBuilder {
 		// Step4: add a top project to alias the output fields of the table aggregate. Also, project the
 		// window attribute.
 		return aliasBackwardFields(tableAggOperation, resolvedFunctionAndAlias.f1, groupingExpressions.size());
+	}
+
+	public QueryOperation cache(AbstractID intermediateDataSetId, QueryOperation child) {
+		return new CacheQueryOperation(child, intermediateDataSetId);
 	}
 
 	/**

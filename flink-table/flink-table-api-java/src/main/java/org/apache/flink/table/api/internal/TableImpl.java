@@ -51,6 +51,7 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
+import org.apache.flink.util.AbstractID;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -587,7 +588,11 @@ public class TableImpl implements Table {
 	@Override
 	public CachedTable cache() {
 		// TODO: implement cache
-		return null;
+		AbstractID intermediateResultId = new AbstractID();
+		final QueryOperation cacheOperation = operationTreeBuilder.cache(intermediateResultId, getQueryOperation());
+		tableEnvironment.getCatalogManager().getCacheManager().addTableToCache(cacheOperation);
+		final TableImpl cachedTable = createTable(cacheOperation);
+		return CachedTableImpl.createCachedTable(cachedTable);
 	}
 
 	@Override
