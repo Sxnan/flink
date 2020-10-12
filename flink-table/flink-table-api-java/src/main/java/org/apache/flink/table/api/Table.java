@@ -1511,4 +1511,43 @@ public interface Table {
 	 * @return AST and the execution plan.
 	 */
 	String explain(ExplainDetail... extraDetails);
+
+	/**
+	 * Cache this table to builtin table service or the specified customized table service.
+	 *
+	 * This method provides a hint to Flink that the current table maybe reused later so a
+	 * cache should be created to avoid regenerating this table.
+	 *
+	 * The following code snippet gives an example of how this method could be used.
+	 *
+	 * {{{
+	 *   Table t = tEnv.fromCollection(data).as('country, 'color, 'count)
+	 *
+	 *   CachedTable t1 = t.filter('count < 100).cache()
+	 *   // t1 is cached after it is computed for the first time.
+	 *   t1.execute().print()
+	 *
+	 *   // When t1 is used again to compute t2, it may not be re-computed.
+	 *   Table t2 = t1.groupBy('country).select('country, 'count.sum as 'sum)
+	 *   t2.execute().print()
+	 *
+	 *   // Similarly when t1 is used again to compute t3, it may not be re-computed.
+	 *   Table t3 = t1.groupBy('color).select('color, 'count.avg as 'avg)
+	 *   t3.execute().print()
+	 *
+	 * }}}
+	 *
+	 * Note: Flink optimizer may decide to not use the cache if doing that will accelerate the
+	 * processing, or if the cache is no longer available for reasons such as the cache has
+	 * been invalidated.
+	 * 		 The table cache could be create lazily. That means the cache may be created at
+	 * the first time when the cached table is computed.
+	 * 		 The table cache will be cleared when the user program exits.
+	 * 		 This method is only supported in batch table and it is treated as No-Op for stream table
+	 *
+	 * @return the current table with a cache hint. The original table reference is not modified
+	 *               by the execution of this method. If this method is called on a table with cache
+	 *               hint, the same table object will return.
+	 */
+	CachedTable cache();
 }
