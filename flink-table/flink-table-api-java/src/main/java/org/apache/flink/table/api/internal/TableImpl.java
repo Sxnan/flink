@@ -20,6 +20,7 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.AggregatedTable;
+import org.apache.flink.table.api.CachedTable;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.FlatAggregateTable;
 import org.apache.flink.table.api.GroupWindow;
@@ -80,11 +81,19 @@ public class TableImpl implements Table {
 		return tableEnvironment;
 	}
 
-	private TableImpl(
-			TableEnvironmentInternal tableEnvironment,
-			QueryOperation operationTree,
-			OperationTreeBuilder operationTreeBuilder,
-			LookupCallResolver lookupResolver) {
+	protected OperationTreeBuilder getOperationTreeBuilder() {
+		return operationTreeBuilder;
+	}
+
+	protected LookupCallResolver getLookupResolver() {
+		return lookupResolver;
+	}
+
+	protected TableImpl(
+		TableEnvironmentInternal tableEnvironment,
+		QueryOperation operationTree,
+		OperationTreeBuilder operationTreeBuilder,
+		LookupCallResolver lookupResolver) {
 		this.tableEnvironment = tableEnvironment;
 		this.operationTree = operationTree;
 		this.operationTreeBuilder = operationTreeBuilder;
@@ -573,6 +582,12 @@ public class TableImpl implements Table {
 	@Override
 	public String explain(ExplainDetail... extraDetails) {
 		return tableEnvironment.explainInternal(Collections.singletonList(getQueryOperation()), extraDetails);
+	}
+
+	@Override
+	public CachedTable cache() {
+		// TODO: implement cache
+		return null;
 	}
 
 	@Override
