@@ -84,6 +84,8 @@ public final class CatalogManager {
 
 	private final DataTypeFactory typeFactory;
 
+	private final CacheManager cacheManager;
+
 	private CatalogManager(
 			String defaultCatalogName,
 			Catalog defaultCatalog,
@@ -101,6 +103,8 @@ public final class CatalogManager {
 		temporaryTables = new HashMap<>();
 		// right now the default catalog is always the built-in one
 		builtInCatalogName = defaultCatalogName;
+
+		cacheManager = new CacheManager();
 
 		this.typeFactory = typeFactory;
 	}
@@ -170,6 +174,11 @@ public final class CatalogManager {
 	 */
 	public DataTypeFactory getDataTypeFactory() {
 		return typeFactory;
+	}
+
+
+	public CacheManager getCacheManager() {
+		return cacheManager;
 	}
 
 	/**
