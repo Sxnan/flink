@@ -51,5 +51,7 @@ public interface QueryOperationVisitor<T> {
 
 	<U> T visit(TableSourceQueryOperation<U> tableSourceTable);
 
+	T visit(CacheQueryOperation cacheQueryOperation);
+
 	T visit(QueryOperation other);
 }

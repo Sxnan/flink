@@ -44,6 +44,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.utils.TableSqlFunction;
 import org.apache.flink.table.operations.AggregateQueryOperation;
+import org.apache.flink.table.operations.CacheQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.DataSetQueryOperation;
@@ -391,6 +392,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				tableSourceTable.getTableSource(),
 				Option.empty()
 			);
+		}
+
+		@Override
+		public RelNode visit(CacheQueryOperation cacheQueryOperation) {
+			throw new UnsupportedOperationException("cache is currently supported in Blink planner");
 		}
 
 		private RelNode convertToDataStreamScan(

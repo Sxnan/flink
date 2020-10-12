@@ -37,6 +37,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.operations.AggregateQueryOperation;
+import org.apache.flink.table.operations.CacheQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.DistinctQueryOperation;
@@ -465,6 +466,16 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				!isBatch,
 				ConnectorCatalogTable.source(tableSource, isBatch));
 			return LogicalTableScan.create(relBuilder.getCluster(), tableSourceTable);
+		}
+
+		@Override
+		public RelNode visit(CacheQueryOperation cacheQueryOperation) {
+			CatalogManager catalogManager = relBuilder.getCluster().getPlanner().getContext()
+				.unwrap(FlinkContext.class).getCatalogManager();
+			if (!catalogManager.getCacheManager().isCached(cacheQueryOperation)) {
+				return relBuilder.peek();
+			}
+			return null;
 		}
 
 		private RelNode convertToDataStreamScan(DataStreamQueryOperation<?> operation) {

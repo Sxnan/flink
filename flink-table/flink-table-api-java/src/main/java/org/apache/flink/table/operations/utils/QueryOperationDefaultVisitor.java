@@ -20,6 +20,7 @@ package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.AggregateQueryOperation;
+import org.apache.flink.table.operations.CacheQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.DistinctQueryOperation;
@@ -100,6 +101,11 @@ public abstract class QueryOperationDefaultVisitor<T> implements QueryOperationV
 	@Override
 	public <U> T visit(TableSourceQueryOperation<U> tableSourceTable) {
 		return defaultMethod(tableSourceTable);
+	}
+
+	@Override
+	public T visit(CacheQueryOperation cacheQueryOperation) {
+		return defaultMethod(cacheQueryOperation);
 	}
 
 	@Override
