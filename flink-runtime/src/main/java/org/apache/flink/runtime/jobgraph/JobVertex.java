@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.OperatorIDPair;
+import org.apache.flink.runtime.executiongraph.PersistedIntermediateResultDescriptorImpl;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
@@ -126,6 +127,8 @@ public class JobVertex implements java.io.Serializable {
 
 	/** The input dependency constraint to schedule this vertex. */
 	private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
+
+	private PersistedIntermediateResultDescriptorImpl intermediateResultInput;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -579,5 +582,13 @@ public class JobVertex implements java.io.Serializable {
 	@Override
 	public String toString() {
 		return this.name + " (" + this.invokableClassName + ')';
+	}
+
+	public PersistedIntermediateResultDescriptorImpl getIntermediateResultInput() {
+		return intermediateResultInput;
+	}
+
+	public void setIntermediateResultInput(PersistedIntermediateResultDescriptorImpl intermediateResultInput) {
+		this.intermediateResultInput = intermediateResultInput;
 	}
 }
