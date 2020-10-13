@@ -486,6 +486,20 @@ public class JobVertex implements java.io.Serializable {
 		return edge;
 	}
 
+	public JobEdge connectNewDataSetAsInput(
+		JobVertex input,
+		DistributionPattern distPattern,
+		ResultPartitionType partitionType,
+		IntermediateDataSetID intermediateDataSetID) {
+
+		IntermediateDataSet dataSet = input.createAndAddResultDataSet(intermediateDataSetID, partitionType);
+
+		JobEdge edge = new JobEdge(dataSet, this, distPattern);
+		this.inputs.add(edge);
+		dataSet.addConsumer(edge);
+		return edge;
+	}
+
 	public void connectIdInput(IntermediateDataSetID dataSetId, DistributionPattern distPattern) {
 		JobEdge edge = new JobEdge(dataSetId, this, distPattern);
 		this.inputs.add(edge);

@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphUtils;
@@ -675,6 +676,12 @@ public class StreamingJobGraphGenerator {
 					edge.getShuffleMode() + " is not supported yet.");
 		}
 
+		IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
+		if (isUpstreamCacheNode(edge)) {
+			resultPartitionType = ResultPartitionType.BLOCKING_PERSISTENT;
+			intermediateDataSetID = streamGraph.getStreamNode(edge.getSourceId()).getCacheIntermediateDataSetId();
+		}
+
 		checkAndResetBufferTimeout(resultPartitionType, edge);
 
 		JobEdge jobEdge;
@@ -682,12 +689,14 @@ public class StreamingJobGraphGenerator {
 			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 				headVertex,
 				DistributionPattern.POINTWISE,
-				resultPartitionType);
+				resultPartitionType,
+				intermediateDataSetID);
 		} else {
 			jobEdge = downStreamVertex.connectNewDataSetAsInput(
-					headVertex,
-					DistributionPattern.ALL_TO_ALL,
-					resultPartitionType);
+				headVertex,
+				DistributionPattern.ALL_TO_ALL,
+				resultPartitionType,
+				intermediateDataSetID);
 		}
 		// set strategy name so that web interface can show it.
 		jobEdge.setShipStrategyName(partitioner.toString());
@@ -696,6 +705,10 @@ public class StreamingJobGraphGenerator {
 			LOG.debug("CONNECTED: {} - {} -> {}", partitioner.getClass().getSimpleName(),
 					headOfChain, downStreamVertexID);
 		}
+	}
+
+	private boolean isUpstreamCacheNode(StreamEdge edge) {
+		return streamGraph.getStreamNode(edge.getSourceId()).isCaching();
 	}
 
 	private void checkAndResetBufferTimeout(ResultPartitionType type, StreamEdge edge) {
