@@ -89,8 +89,14 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
 	private List<IntermediateResultPartitionID> filterReleasablePartitions(final Iterable<? extends SchedulingResultPartition> schedulingResultPartitions) {
 		return IterableUtils.toStream(schedulingResultPartitions)
 			.map(SchedulingResultPartition::getId)
+			.filter(this::isNonPersistent)
 			.filter(this::areConsumerRegionsFinished)
 			.collect(Collectors.toList());
+	}
+
+	private boolean isNonPersistent(IntermediateResultPartitionID resultPartitionId) {
+		final SchedulingResultPartition resultPartition = schedulingTopology.getResultPartition(resultPartitionId);
+		return !resultPartition.getResultType().isPersistent();
 	}
 
 	private boolean areConsumerRegionsFinished(final IntermediateResultPartitionID resultPartitionId) {
