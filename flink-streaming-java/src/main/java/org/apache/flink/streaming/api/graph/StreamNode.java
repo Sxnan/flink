@@ -24,6 +24,7 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -85,6 +86,9 @@ public class StreamNode {
 	private String transformationUID;
 	private String userHash;
 	private boolean sortedInputs = false;
+
+	private boolean caching = false;
+	private IntermediateDataSetID cacheIntermediateDataSetId;
 
 	@VisibleForTesting
 	public StreamNode(
@@ -372,5 +376,21 @@ public class StreamNode {
 	@Override
 	public int hashCode() {
 		return id;
+	}
+
+	public boolean isCaching() {
+		return caching;
+	}
+
+	public void setCaching(boolean caching) {
+		this.caching = caching;
+	}
+
+	public IntermediateDataSetID getCacheIntermediateDataSetId() {
+		return cacheIntermediateDataSetId;
+	}
+
+	public void setCacheIntermediateDataSetId(IntermediateDataSetID cacheIntermediateDataSetId) {
+		this.cacheIntermediateDataSetId = cacheIntermediateDataSetId;
 	}
 }

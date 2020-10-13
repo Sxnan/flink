@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -32,7 +33,11 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.functions.sink.CacheSinkFunction;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputFormatOperatorFactory;
+import org.apache.flink.streaming.api.operators.SimpleUdfStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
@@ -50,12 +55,10 @@ import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.translators.MultiInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.OneInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TwoInputTransformationTranslator;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -641,6 +644,19 @@ public class StreamGraphGenerator {
 
 		Collection<Integer> inputIds = transform(input);
 
+		if (isCacheSink(sink)) {
+			if (inputIds.size() > 1) {
+				throw new RuntimeException("caching with multiple input in not supported");
+			}
+			Integer inputId = inputIds.iterator().next();
+			final StreamNode inputNode = streamGraph.getStreamNode(inputId);
+			inputNode.setCaching(true);
+			inputNode.getOperatorFactory().setChainingStrategy(ChainingStrategy.NEVER);
+			inputNode.setCacheIntermediateDataSetId(getIntermediateDataSetId(sink));
+
+			return Collections.emptyList();
+		}
+
 		String slotSharingGroup = determineSlotSharingGroup(sink.getSlotSharingGroup(), inputIds);
 
 		streamGraph.addSink(sink.getId(),
@@ -669,6 +685,29 @@ public class StreamGraphGenerator {
 		}
 
 		return Collections.emptyList();
+	}
+
+	private <T> IntermediateDataSetID getIntermediateDataSetId(LegacySinkTransformation<T> sink) {
+		CacheSinkFunction<T> cacheSinkFunction = maybeGetCacheSink(sink);
+		if (cacheSinkFunction == null) {
+			return null;
+		}
+		return new IntermediateDataSetID(cacheSinkFunction.getIntermediateDataSetId());
+	}
+
+	private <T> boolean isCacheSink(LegacySinkTransformation<T> sink) {
+		return maybeGetCacheSink(sink) != null;
+	}
+
+	private <T> CacheSinkFunction<T> maybeGetCacheSink(LegacySinkTransformation<T> sink) {
+		final StreamOperatorFactory<Object> operatorFactory = sink.getOperatorFactory();
+		if (operatorFactory instanceof SimpleUdfStreamOperatorFactory) {
+			SimpleUdfStreamOperatorFactory<T> udfStreamOperatorFactory = (SimpleUdfStreamOperatorFactory<T>) operatorFactory;
+			if (udfStreamOperatorFactory.getUserFunction() instanceof CacheSinkFunction) {
+				return (CacheSinkFunction<T>) udfStreamOperatorFactory.getUserFunction();
+			}
+		}
+		return null;
 	}
 
 	private Collection<Integer> translate(
