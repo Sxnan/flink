@@ -19,6 +19,14 @@ public class CacheQueryOperation implements QueryOperation {
 		this.intermediateDataSetId = intermediateDataSetId;
 	}
 
+	public AbstractID getIntermediateDataSetId() {
+		return intermediateDataSetId;
+	}
+
+	public QueryOperation getChild() {
+		return child;
+	}
+
 	@Override
 	public TableSchema getTableSchema() {
 		return child.getTableSchema();

@@ -42,20 +42,20 @@ import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
 import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateSchemaAndApplyImplicitCast, validateTableSink}
-import org.apache.flink.table.planner.sinks.{DataStreamTableSink, SelectTableSinkBase, SelectTableSinkSchemaConverter}
+import org.apache.flink.table.planner.sinks.{CacheTableSink, DataStreamTableSink, SelectTableSinkBase, SelectTableSinkSchemaConverter}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 import org.apache.flink.table.utils.TableSchemaUtils
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.tools.FrameworkConfig
-
 import java.util
 import java.util.function.{Function => JFunction, Supplier => JSupplier}
+
+import org.apache.flink.table.data.RowData
 
 import _root_.scala.collection.JavaConversions._
 
@@ -160,7 +160,8 @@ abstract class PlannerBase(
       Thread.currentThread().getContextClassLoader)
     overrideEnvParallelism()
 
-    val relNodes = modifyOperations.map(translateToRel)
+    val processedModifyOperations = modifyOperations.flatMap(processCacheOperation)
+    val relNodes = processedModifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
     translateToPlan(execNodes)
@@ -178,6 +179,35 @@ abstract class PlannerBase(
   override def getCompletionHints(statement: String, position: Int): Array[String] = {
     val planner = createFlinkPlanner
     planner.getCompletionHints(statement, position)
+  }
+
+  private def createCacheSink(cacheQueryOperation: CacheQueryOperation): ModifyOperation = {
+    val cacheTableSink = new CacheTableSink[RowData](cacheQueryOperation.getIntermediateDataSetId,
+      cacheQueryOperation.getTableSchema)
+    new UnregisteredSinkModifyOperation(cacheTableSink, cacheQueryOperation.getChild)
+  }
+
+  private[flink] def processCacheOperation(operation: Operation): List[ModifyOperation] = {
+    operation match {
+      case modifyOperation: ModifyOperation => {
+        modifyOperation :: processCacheOperation(modifyOperation.getChild)
+      }
+      case queryOperation: QueryOperation => {
+        queryOperation match {
+          case cacheQueryOperation: CacheQueryOperation => {
+            val list = cacheQueryOperation.getChildren.flatMap(processCacheOperation).toList
+            if (!catalogManager.getCacheManager.isCached(cacheQueryOperation)) {
+              createCacheSink(cacheQueryOperation) :: list
+            } else {
+              list
+            }
+          }
+          case _ => {
+            queryOperation.getChildren.flatMap(processCacheOperation).toList
+          }
+        }
+      }
+    }
   }
 
   /**
