@@ -3,9 +3,12 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.PersistedIntermediateResultDescriptor;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.Optional;
 
 public class PersistedIntermediateResultDescriptorImpl implements PersistedIntermediateResultDescriptor {
 	private Collection<ClusterPartitionDescriptorImpl> clusterPartitionDescriptors = new ArrayList<>();
@@ -33,5 +36,14 @@ public class PersistedIntermediateResultDescriptorImpl implements PersistedInter
 
 	public void addClusterPartitionDescriptor(ClusterPartitionDescriptorImpl clusterPartitionDescriptor) {
 		clusterPartitionDescriptors.add(clusterPartitionDescriptor);
+	}
+
+	public int getMaxNumberOfSubpartitions() {
+		final Optional<Integer> max = getClusterPartitionDescriptors().stream()
+			.map(ClusterPartitionDescriptorImpl::getNumberOfSubpartitions)
+			.max(Comparator.naturalOrder());
+
+		Preconditions.checkState(max.isPresent());
+		return max.get();
 	}
 }
