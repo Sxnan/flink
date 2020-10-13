@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ClusterPartitionDescriptorImpl;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.PersistedIntermediateResultDescriptorImpl;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -62,16 +64,18 @@ public class TaskDeploymentDescriptorFactory {
 	private final boolean allowUnknownPartitions;
 	private final int subtaskIndex;
 	private final ExecutionEdge[][] inputEdges;
+	private PersistedIntermediateResultDescriptorImpl intermediateResultInput;
 
 	private TaskDeploymentDescriptorFactory(
-			ExecutionAttemptID executionId,
-			int attemptNumber,
-			MaybeOffloaded<JobInformation> serializedJobInformation,
-			MaybeOffloaded<TaskInformation> taskInfo,
-			JobID jobID,
-			boolean allowUnknownPartitions,
-			int subtaskIndex,
-			ExecutionEdge[][] inputEdges) {
+		ExecutionAttemptID executionId,
+		int attemptNumber,
+		MaybeOffloaded<JobInformation> serializedJobInformation,
+		MaybeOffloaded<TaskInformation> taskInfo,
+		JobID jobID,
+		boolean allowUnknownPartitions,
+		int subtaskIndex,
+		ExecutionEdge[][] inputEdges,
+		PersistedIntermediateResultDescriptorImpl intermediateResultInput) {
 		this.executionId = executionId;
 		this.attemptNumber = attemptNumber;
 		this.serializedJobInformation = serializedJobInformation;
@@ -80,6 +84,7 @@ public class TaskDeploymentDescriptorFactory {
 		this.allowUnknownPartitions = allowUnknownPartitions;
 		this.subtaskIndex = subtaskIndex;
 		this.inputEdges = inputEdges;
+		this.intermediateResultInput = intermediateResultInput;
 	}
 
 	public TaskDeploymentDescriptor createDeploymentDescriptor(
@@ -123,6 +128,22 @@ public class TaskDeploymentDescriptorFactory {
 				getConsumedPartitionShuffleDescriptors(edges)));
 		}
 
+		if (intermediateResultInput != null) {
+			int queueToRequest = subtaskIndex % intermediateResultInput.getMaxNumberOfSubpartitions();
+			final ShuffleDescriptor[] shuffleDescriptors =
+				intermediateResultInput.getClusterPartitionDescriptors().stream()
+					.filter(clusterPartitionDescriptor ->
+						clusterPartitionDescriptor.getNumberOfSubpartitions() > queueToRequest)
+					.map(ClusterPartitionDescriptorImpl::getShuffleDescriptor)
+					.toArray(ShuffleDescriptor[]::new);
+			inputGates.add(new InputGateDeploymentDescriptor(
+				intermediateResultInput.getIntermediateDataSetId(),
+				intermediateResultInput.getResultPartitionType(),
+				queueToRequest,
+				shuffleDescriptors
+			));
+		}
+
 		return inputGates;
 	}
 
@@ -148,7 +169,8 @@ public class TaskDeploymentDescriptorFactory {
 			executionGraph.getJobID(),
 			executionGraph.getScheduleMode().allowLazyDeployment(),
 			executionVertex.getParallelSubtaskIndex(),
-			executionVertex.getAllInputEdges());
+			executionVertex.getAllInputEdges(),
+			executionVertex.getJobVertex().getJobVertex().getIntermediateResultInput());
 	}
 
 	private static MaybeOffloaded<JobInformation> getSerializedJobInformation(ExecutionGraph executionGraph) {
