@@ -38,6 +38,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
+import org.apache.flink.table.catalog.CacheManager;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -677,6 +678,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
 		try {
 			JobClient jobClient = execEnv.executeAsync(pipeline);
+			updateCacheManagerWhenJobComplete(jobClient);
 			TableSchema.Builder builder = TableSchema.builder();
 			Object[] affectedRowCounts = new Long[operations.size()];
 			for (int i = 0; i < operations.size(); ++i) {
@@ -703,6 +705,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, "collect");
 		try {
 			JobClient jobClient = execEnv.executeAsync(pipeline);
+			updateCacheManagerWhenJobComplete(jobClient);
 			SelectResultProvider resultProvider = sinkOperation.getSelectResultProvider();
 			resultProvider.setJobClient(jobClient);
 			return TableResultImpl.builder()
@@ -716,6 +719,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		} catch (Exception e) {
 			throw new TableException("Failed to execute sql", e);
 		}
+	}
+
+	private void updateCacheManagerWhenJobComplete(JobClient jobClient) {
+		jobClient.getJobExecutionResult()
+			.thenAccept(jobExecutionResult -> {
+				final CacheManager cacheManager = catalogManager.getCacheManager();
+				jobExecutionResult.getPersistedIntermediateResultDescriptor()
+					.forEach(cacheManager::markTableCached);
+			});
 	}
 
 	@Override
