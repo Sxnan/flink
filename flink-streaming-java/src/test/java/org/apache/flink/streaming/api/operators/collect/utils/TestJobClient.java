@@ -115,7 +115,7 @@ public class TestJobClient implements JobClient, CoordinationRequestGateway {
 
 		if (infoProvider.isJobFinished()) {
 			jobStatus = JobStatus.FINISHED;
-			jobExecutionResult = new JobExecutionResult(jobId, 0, infoProvider.getAccumulatorResults());
+			jobExecutionResult = new JobExecutionResult(jobId, 0, infoProvider.getAccumulatorResults(), null);
 		}
 
 		return CompletableFuture.completedFuture(response);

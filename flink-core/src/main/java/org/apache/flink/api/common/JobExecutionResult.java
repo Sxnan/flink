@@ -21,6 +21,7 @@ package org.apache.flink.api.common;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.OptionalFailure;
 
 import java.util.Collections;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 public class JobExecutionResult extends JobSubmissionResult {
 
 	private final long netRuntime;
+	private final Map<AbstractID, PersistedIntermediateResultDescriptor> persistedIntermediateResultDescriptor;
 
 	private final Map<String, OptionalFailure<Object>> accumulatorResults;
 
@@ -45,10 +47,14 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 * @param jobID The job's ID.
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer) in milliseconds
 	 * @param accumulators A map of all accumulators produced by the job.
+	 * @param persistedIntermediateResultDescriptor
 	 */
-	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators) {
+	public JobExecutionResult(JobID jobID,
+							  long netRuntime, Map<String, OptionalFailure<Object>> accumulators,
+							  Map<AbstractID, PersistedIntermediateResultDescriptor> persistedIntermediateResultDescriptor) {
 		super(jobID);
 		this.netRuntime = netRuntime;
+		this.persistedIntermediateResultDescriptor = persistedIntermediateResultDescriptor;
 
 		if (accumulators != null) {
 			this.accumulatorResults = accumulators;
@@ -164,6 +170,10 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 */
 	@Deprecated
 	public static JobExecutionResult fromJobSubmissionResult(JobSubmissionResult result) {
-		return new JobExecutionResult(result.getJobID(), -1, null);
+		return new JobExecutionResult(result.getJobID(), -1, null, null);
+	}
+
+	public Map<AbstractID, PersistedIntermediateResultDescriptor> getPersistedIntermediateResultDescriptor() {
+		return persistedIntermediateResultDescriptor;
 	}
 }
