@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -79,8 +80,10 @@ import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable$;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
+import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.sources.CacheTableSource;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -110,6 +113,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import scala.Option;
 import scala.Some;
 
 import static java.util.Arrays.asList;
@@ -473,9 +477,28 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			CatalogManager catalogManager = relBuilder.getCluster().getPlanner().getContext()
 				.unwrap(FlinkContext.class).getCatalogManager();
 			if (!catalogManager.getCacheManager().isCached(cacheQueryOperation)) {
-				return relBuilder.peek();
+				return relBuilder.build();
 			}
-			return null;
+
+			final CacheTableSource tableSource = new CacheTableSource(cacheQueryOperation.getTableSchema(),
+				catalogManager.getCacheManager().getPersistedIntermediateResultDescriptor(cacheQueryOperation));
+			final ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(
+				UnresolvedIdentifier.of("CacheTableSource_" + System.identityHashCode(tableSource)));
+
+			TableSourceTable tableSourceTable = new TableSourceTable(
+				relBuilder.getRelOptSchema(),
+				objectIdentifier,
+				TableSourceUtil.getSourceRowType(relBuilder.getTypeFactory(),
+					cacheQueryOperation.getTableSchema(), Option.empty(), false),
+				FlinkStatistic.UNKNOWN(),
+				tableSource,
+				false,
+				new CatalogTableImpl(cacheQueryOperation.getTableSchema(), Collections.emptyMap(), "CacheCatalogTable"),
+				Collections.emptyMap(),
+				new String[0]
+				);
+
+			return LogicalTableScan.create(relBuilder.getCluster(), tableSourceTable, Collections.emptyList());
 		}
 
 		private RelNode convertToDataStreamScan(DataStreamQueryOperation<?> operation) {

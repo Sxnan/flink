@@ -1,15 +1,14 @@
 package org.apache.flink.table.planner.sources;
 
 import org.apache.flink.api.common.PersistedIntermediateResultDescriptor;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.CacheSourceFunction;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceFunctionProvider;
 
-public class CacheTableSource implements StreamTableSource<Row> {
+public class CacheTableSource implements ScanTableSource {
 
 	private TableSchema tableSchema;
 	private PersistedIntermediateResultDescriptor persistedIntermediateResultDescriptor;
@@ -22,24 +21,23 @@ public class CacheTableSource implements StreamTableSource<Row> {
 	}
 
 	@Override
-	public DataType getProducedDataType() {
-		return tableSchema.toRowDataType();
+	public ChangelogMode getChangelogMode() {
+		return ChangelogMode.insertOnly();
 	}
 
 	@Override
-	public boolean isBounded() {
-		return true;
+	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+		return SourceFunctionProvider.of(new CacheSourceFunction<>(persistedIntermediateResultDescriptor),
+			true);
 	}
 
 	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
+	public DynamicTableSource copy() {
+		return new CacheTableSource(tableSchema, persistedIntermediateResultDescriptor);
 	}
 
 	@Override
-	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-		return execEnv.addSource(new CacheSourceFunction<>(persistedIntermediateResultDescriptor),
-			tableSchema.toRowType());
+	public String asSummaryString() {
+		return "CacheTableSource";
 	}
-
 }
