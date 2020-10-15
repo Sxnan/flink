@@ -29,6 +29,12 @@ public class CacheManager {
 		cachedTable.put(cachedQueryOperation, persistedIntermediateResultDescriptor);
 	}
 
+	public PersistedIntermediateResultDescriptor getPersistedIntermediateResultDescriptor(
+		CacheQueryOperation queryOperation) {
+		return cachedTable.get(queryOperation);
+	}
+
+
 	public boolean isCached(CacheQueryOperation cacheQueryOperation) {
 		return cachedTable.containsKey(cacheQueryOperation);
 	}
