@@ -100,7 +100,8 @@ public class ExecutionGraphGenerateClusterPartitionDescriptorTest extends TestLo
 			AkkaUtils.getDefaultTimeout(),
 			log,
 			NettyShuffleMaster.INSTANCE,
-			NoOpJobMasterPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE,
+			System.currentTimeMillis());
 
 		executionGraph.start(mainThreadExecutor.getMainThreadExecutor());
 		mainThreadExecutor.execute(executionGraph::scheduleForExecution);
