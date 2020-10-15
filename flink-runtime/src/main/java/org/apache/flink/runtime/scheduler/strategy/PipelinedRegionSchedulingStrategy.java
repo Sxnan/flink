@@ -70,7 +70,8 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
 	private void init() {
 		for (SchedulingPipelinedRegion region : schedulingTopology.getAllPipelinedRegions()) {
 			for (SchedulingResultPartition partition : region.getConsumedResults()) {
-				checkState(partition.getResultType() == ResultPartitionType.BLOCKING);
+//				checkState(partition.getResultType() == ResultPartitionType.BLOCKING);
+				checkState(partition.getResultType().isBlocking());
 
 				partitionConsumerRegions.computeIfAbsent(partition.getId(), pid -> new HashSet<>()).add(region);
 				correlatedResultPartitions.computeIfAbsent(partition.getResultId(), rid -> new HashSet<>()).add(partition);
