@@ -2,6 +2,8 @@ package org.apache.flink.api.common;
 
 import org.apache.flink.util.AbstractID;
 
-public interface PersistedIntermediateResultDescriptor {
+import java.io.Serializable;
+
+public interface PersistedIntermediateResultDescriptor extends Serializable {
 	AbstractID getIntermediateDataSetId();
 }
