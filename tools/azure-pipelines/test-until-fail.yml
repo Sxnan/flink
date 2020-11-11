@@ -1,0 +1,44 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+parameters:
+  test_pool_definition: # defines the hardware pool for compilation and unit test execution.
+  environment: # defines environment variables for downstream scripts
+  container: # the container name for the build
+
+jobs:
+- job: test_until_fail
+  # succeeded() is needed to allow job cancellation
+  pool: ${{parameters.test_pool_definition}}
+  container: ${{parameters.container}}
+  timeoutInMinutes: 360
+  cancelTimeoutInMinutes: 1
+  workspace:
+    clean: all # this cleans the entire workspace directory before running a new job
+    # It is necessary because the custom build machines are reused for tests.
+    # See also https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace
+
+  steps:
+  # if on Azure, free up disk space
+  - script: timeout 350m ./tools/azure-pipelines/run_until_fail.sh $TEST_DIR $TEST_TO_RUN
+    target: host
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: test until fail
+
+  # upload artifacts for next stage
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: $(FLINK_ARTIFACT_DIR)
+      artifact: test_until_fail-log
