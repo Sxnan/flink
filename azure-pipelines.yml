@@ -31,8 +31,8 @@
 
 trigger:
   branches:
-    include:
-    - 'test-branch*'  # must quote since "*" is a YAML reserved character; we want a string
+    exclude:
+    - '*'  # must quote since "*" is a YAML reserved character; we want a string
 
 resources:
   containers:
