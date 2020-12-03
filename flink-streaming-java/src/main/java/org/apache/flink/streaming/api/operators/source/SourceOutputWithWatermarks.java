@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.QueryableWatermarkOutput;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
@@ -64,9 +65,9 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
 
     private final WatermarkGenerator<T> watermarkGenerator;
 
-    private final WatermarkOutput onEventWatermarkOutput;
+    private final QueryableWatermarkOutput onEventWatermarkOutput;
 
-    private final WatermarkOutput periodicWatermarkOutput;
+    private final QueryableWatermarkOutput periodicWatermarkOutput;
 
     private final StreamRecord<T> reusingRecord;
 
@@ -76,8 +77,8 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
      */
     protected SourceOutputWithWatermarks(
             PushingAsyncDataInput.DataOutput<T> recordsOutput,
-            WatermarkOutput onEventWatermarkOutput,
-            WatermarkOutput periodicWatermarkOutput,
+            QueryableWatermarkOutput onEventWatermarkOutput,
+            QueryableWatermarkOutput periodicWatermarkOutput,
             TimestampAssigner<T> timestampAssigner,
             WatermarkGenerator<T> watermarkGenerator) {
 
@@ -152,7 +153,7 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
             TimestampAssigner<E> timestampAssigner,
             WatermarkGenerator<E> watermarkGenerator) {
 
-        final WatermarkOutput watermarkOutput =
+        final QueryableWatermarkOutput watermarkOutput =
                 new WatermarkToDataOutput(recordsAndWatermarksOutput);
 
         return new SourceOutputWithWatermarks<>(
@@ -169,8 +170,8 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
      */
     public static <E> SourceOutputWithWatermarks<E> createWithSeparateOutputs(
             PushingAsyncDataInput.DataOutput<E> recordsOutput,
-            WatermarkOutput onEventWatermarkOutput,
-            WatermarkOutput periodicWatermarkOutput,
+            QueryableWatermarkOutput onEventWatermarkOutput,
+            QueryableWatermarkOutput periodicWatermarkOutput,
             TimestampAssigner<E> timestampAssigner,
             WatermarkGenerator<E> watermarkGenerator) {
 
@@ -180,5 +181,12 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
                 periodicWatermarkOutput,
                 timestampAssigner,
                 watermarkGenerator);
+    }
+
+    @Override
+    public Long getCurrentWatermark() {
+        return Math.max(
+                onEventWatermarkOutput.getLastEmitWatermark(),
+                periodicWatermarkOutput.getLastEmitWatermark());
     }
 }

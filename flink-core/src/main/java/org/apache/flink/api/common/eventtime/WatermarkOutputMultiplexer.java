@@ -108,7 +108,7 @@ public class WatermarkOutputMultiplexer {
      * <p>>See {@link WatermarkOutputMultiplexer} for a description of immediate and deferred
      * outputs.
      */
-    public WatermarkOutput getImmediateOutput(String outputId) {
+    public QueryableWatermarkOutput getImmediateOutput(String outputId) {
         final OutputState outputState = watermarkPerOutputId.get(outputId);
         Preconditions.checkArgument(
                 outputState != null, "no output registered under id %s", outputId);
@@ -121,7 +121,7 @@ public class WatermarkOutputMultiplexer {
      * <p>>See {@link WatermarkOutputMultiplexer} for a description of immediate and deferred
      * outputs.
      */
-    public WatermarkOutput getDeferredOutput(String outputId) {
+    public QueryableWatermarkOutput getDeferredOutput(String outputId) {
         final OutputState outputState = watermarkPerOutputId.get(outputId);
         Preconditions.checkArgument(
                 outputState != null, "no output registered under id %s", outputId);
@@ -208,7 +208,7 @@ public class WatermarkOutputMultiplexer {
      * Updating the state of an immediate output can possible lead to a combined watermark update to
      * the underlying {@link WatermarkOutput}.
      */
-    private class ImmediateOutput implements WatermarkOutput {
+    private class ImmediateOutput extends QueryableWatermarkOutput {
 
         private final OutputState state;
 
@@ -236,6 +236,16 @@ public class WatermarkOutputMultiplexer {
             // was holding back the watermark or not.
             updateCombinedWatermark();
         }
+
+        @Override
+        public Long getLastEmitWatermark() {
+            return state.watermark;
+        }
+
+        @Override
+        public boolean isIdle() {
+            return state.isIdle();
+        }
     }
 
     /**
@@ -243,7 +253,7 @@ public class WatermarkOutputMultiplexer {
      * when {@link WatermarkOutputMultiplexer#onPeriodicEmit()} is called will the deferred updates
      * be combined into a potential combined update of the underlying {@link WatermarkOutput}.
      */
-    private static class DeferredOutput implements WatermarkOutput {
+    private static class DeferredOutput extends QueryableWatermarkOutput {
 
         private final OutputState state;
 
@@ -259,6 +269,16 @@ public class WatermarkOutputMultiplexer {
         @Override
         public void markIdle() {
             state.setIdle(true);
+        }
+
+        @Override
+        public Long getLastEmitWatermark() {
+            return state.watermark;
+        }
+
+        @Override
+        public boolean isIdle() {
+            return state.isIdle();
         }
     }
 }

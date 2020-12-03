@@ -64,4 +64,12 @@ public interface SourceOutput<T> extends WatermarkOutput {
      * @param timestamp the timestamp of the record.
      */
     void collect(T record, long timestamp);
+
+    default Long getCurrentWatermark() {
+        throw new UnsupportedOperationException();
+    }
+
+    default boolean isIdle() {
+        return false;
+    }
 }
