@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.QueryableWatermarkOutput;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
@@ -98,7 +99,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
 		// support re-assigning the underlying output
 		checkState(currentMainOutput == null && currentPerSplitOutputs == null, "already created a main output");
 
-		final WatermarkOutput watermarkOutput = new WatermarkToDataOutput(output);
+		final QueryableWatermarkOutput watermarkOutput = new WatermarkToDataOutput(output);
 		final WatermarkGenerator<T> watermarkGenerator = watermarksFactory.createWatermarkGenerator(watermarksContext);
 
 		currentPerSplitOutputs = new SplitLocalOutputs<>(
@@ -158,7 +159,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
 
 		StreamingReaderOutput(
 				PushingAsyncDataInput.DataOutput<T> output,
-				WatermarkOutput watermarkOutput,
+				QueryableWatermarkOutput watermarkOutput,
 				TimestampAssigner<T> timestampAssigner,
 				WatermarkGenerator<T> watermarkGenerator,
 				SplitLocalOutputs<T> splitLocalOutputs) {
@@ -218,8 +219,8 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
 			}
 
 			watermarkMultiplexer.registerNewOutput(splitId);
-			final WatermarkOutput onEventOutput = watermarkMultiplexer.getImmediateOutput(splitId);
-			final WatermarkOutput periodicOutput = watermarkMultiplexer.getDeferredOutput(splitId);
+			final QueryableWatermarkOutput onEventOutput = watermarkMultiplexer.getImmediateOutput(splitId);
+			final QueryableWatermarkOutput periodicOutput = watermarkMultiplexer.getDeferredOutput(splitId);
 
 			final WatermarkGenerator<T> watermarks = watermarksFactory.createWatermarkGenerator(watermarkContext);
 
