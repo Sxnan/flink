@@ -121,6 +121,11 @@ public class NumberSequenceSourceTest {
 		}
 
 		@Override
+		public String getTaskName() {
+			return "dummy";
+		}
+
+		@Override
 		public int getIndexOfSubtask() {
 			return 0;
 		}
