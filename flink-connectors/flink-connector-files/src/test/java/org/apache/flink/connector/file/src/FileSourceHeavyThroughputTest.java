@@ -208,6 +208,11 @@ public class FileSourceHeavyThroughputTest {
         }
 
         @Override
+        public String getTaskName() {
+            return "NoOp";
+        }
+
+        @Override
         public int getIndexOfSubtask() {
             return 0;
         }

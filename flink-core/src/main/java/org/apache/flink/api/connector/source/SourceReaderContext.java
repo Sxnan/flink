@@ -38,6 +38,9 @@ public interface SourceReaderContext {
      */
     String getLocalHostName();
 
+    /** Get the task name of the source. */
+    String getTaskName();
+
     /** @return The index of this subtask. */
     int getIndexOfSubtask();
 

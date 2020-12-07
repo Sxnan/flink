@@ -201,6 +201,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     }
 
                     @Override
+                    public String getTaskName() {
+                        return getRuntimeContext().getTaskName();
+                    }
+
+                    @Override
                     public void sendSourceEventToCoordinator(SourceEvent event) {
                         operatorEventGateway.sendEventToCoordinator(new SourceEventWrapper(event));
                     }

@@ -64,6 +64,11 @@ public class TestingReaderContext implements SourceReaderContext {
     }
 
     @Override
+    public String getTaskName() {
+        return "Testing";
+    }
+
+    @Override
     public int getIndexOfSubtask() {
         return 0;
     }
