@@ -63,7 +63,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
     private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
 
     /** The state of the splits. */
-    private final Map<String, SplitContext<T, SplitStateT>> splitStates;
+    protected final Map<String, SplitContext<T, SplitStateT>> splitStates;
 
     /** The record emitter to handle the records read by the SplitReaders. */
     protected final RecordEmitter<E, T, SplitStateT> recordEmitter;
@@ -296,7 +296,8 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
     // ------------------ private helper classes ---------------------
 
-    private static final class SplitContext<T, SplitStateT> {
+    /** SplitContext keeps the per splits information. */
+    protected static final class SplitContext<T, SplitStateT> {
 
         final String splitId;
         final SplitStateT state;
@@ -311,6 +312,10 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
             if (sourceOutput == null) {
                 sourceOutput = mainOutput.createOutputForSplit(splitId);
             }
+            return sourceOutput;
+        }
+
+        SourceOutput<T> getSourceOutput() {
             return sourceOutput;
         }
     }

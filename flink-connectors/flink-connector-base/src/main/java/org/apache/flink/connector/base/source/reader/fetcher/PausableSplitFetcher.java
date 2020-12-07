@@ -22,7 +22,6 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.PausableSplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.util.Preconditions;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -33,7 +32,7 @@ import static org.apache.flink.connector.base.source.reader.splitreader.Pausable
 
 /** SplitFetcher that can pause or resume reading from splits. */
 public class PausableSplitFetcher<E, SplitT extends SourceSplit> extends SplitFetcher<E, SplitT> {
-    private PausableSplitReader<E, SplitT> splitReader;
+    private final PausableSplitReader<E, SplitT> splitReader;
 
     PausableSplitFetcher(
             int id,
@@ -56,10 +55,9 @@ public class PausableSplitFetcher<E, SplitT extends SourceSplit> extends SplitFe
                         desiredStates.forEach(
                                 (splitId, desiredState) -> {
                                     SplitState currentState = splitsState.get(splitId);
-                                    Preconditions.checkNotNull(
-                                            currentState,
-                                            "the current state of split {} should not be null",
-                                            splitId);
+                                    if (currentState == null) {
+                                        return;
+                                    }
                                     if (currentState == desiredState) {
                                         // state is not changed do nothing
                                         return;
@@ -87,5 +85,9 @@ public class PausableSplitFetcher<E, SplitT extends SourceSplit> extends SplitFe
                     }
                 });
         wakeUp(true);
+    }
+
+    public Map<String, SplitState> getSplitsState() {
+        return splitReader.getSplitState();
     }
 }

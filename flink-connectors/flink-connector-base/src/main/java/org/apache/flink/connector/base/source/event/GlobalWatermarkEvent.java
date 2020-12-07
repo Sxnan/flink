@@ -19,21 +19,16 @@
 package org.apache.flink.connector.base.source.event;
 
 import org.apache.flink.api.connector.source.SourceEvent;
-import org.apache.flink.connector.base.source.splitenumerator.WatermarkAlignedSplitEnumerator;
 
-/**
- * The SourceReaderWatermarkEvent is sent to {@link WatermarkAlignedSplitEnumerator} to update the
- * current watermark of the SourceReader. The current watermark is typically the minimal among the
- * watermarks from all the splits in the source reader.
- */
-public class SourceReaderWatermarkEvent implements SourceEvent {
-    private final Long watermark;
+/** GlobalWatermarkEvent is used to send the global watermark to the source readers. */
+public class GlobalWatermarkEvent implements SourceEvent {
+    private final Long globalWatermark;
 
-    public SourceReaderWatermarkEvent(Long watermark) {
-        this.watermark = watermark;
+    public GlobalWatermarkEvent(Long globalWatermark) {
+        this.globalWatermark = globalWatermark;
     }
 
-    public Long getWatermark() {
-        return watermark;
+    public Long getGlobalWatermark() {
+        return globalWatermark;
     }
 }

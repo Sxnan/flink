@@ -52,10 +52,10 @@ import java.util.function.Supplier;
 public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(SplitFetcherManager.class);
 
-    private final Consumer<Throwable> errorHandler;
+    final Consumer<Throwable> errorHandler;
 
     /** An atomic integer to generate monotonically increasing fetcher ids. */
-    private final AtomicInteger fetcherIdGenerator;
+    final AtomicInteger fetcherIdGenerator;
 
     /** A supplier to provide split readers. */
     private final Supplier<SplitReader<E, SplitT>> splitReaderFactory;
@@ -76,7 +76,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     private final ExecutorService executors;
 
     /** Indicating the split fetcher manager has closed or not. */
-    private volatile boolean closed;
+    volatile boolean closed;
 
     /**
      * Create a split fetcher manager.
