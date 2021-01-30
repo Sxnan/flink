@@ -36,6 +36,7 @@ import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Unit test for {@link WatermarkAlignedSplitEnumerator}.
@@ -53,7 +54,11 @@ public class WatermarkAlignedSplitEnumeratorTest {
 		splitEnumerator.handleSourceEvent(0, new SourceReaderWatermarkEvent(100L));
 		final List<Callable<Future<?>>> periodicCallables = context.getPeriodicCallables();
 		assertEquals(1, periodicCallables.size());
-		periodicCallables.get(0).call().get();
+		try {
+			periodicCallables.get(0).call().get();
+		} catch (Exception e) {
+			fail("Fail to handle the source event for watermark alignment.");
+		}
 		final List<SourceEvent> sourceEvents = context.getSentSourceEvent().get(0);
 		assertEquals(1, sourceEvents.size());
 		final SourceEvent sourceEvent = sourceEvents.get(0);

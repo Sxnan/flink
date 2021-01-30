@@ -51,6 +51,20 @@ public class KafkaSourceOptions {
 					.defaultValue(10000L)
 					.withDescription("The max time to wait when closing components.");
 
+	public static final ConfigOption<Long> ALIGN_WATERMARK_PERIOD =
+			ConfigOptions
+					.key("align.watermark.period")
+					.longType()
+					.defaultValue(0L)
+					.withDescription("The period to align the global watermark of source readers.");
+
+	public static final ConfigOption<Long> ALIGN_WATERMARK_THRESHOLD =
+			ConfigOptions
+					.key("align.watermark.threshold")
+					.longType()
+					.defaultValue(0L)
+					.withDescription("The threshold to align the global watermark of source readers.");
+
 	@SuppressWarnings("unchecked")
 	public static <T> T getOption(Properties props, ConfigOption configOption, Function<String, T> parser) {
 		String value = props.getProperty(configOption.key());

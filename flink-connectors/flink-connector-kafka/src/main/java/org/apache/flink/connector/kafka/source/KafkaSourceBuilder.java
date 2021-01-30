@@ -340,6 +340,26 @@ public class KafkaSourceBuilder<OUT> {
 	}
 
 	/**
+	 * Sets the threshold to align the watermark of the KafkaSource.
+	 *
+	 * @param alignWatermarkThreshold the threshold to align the source reader watermark.
+	 * @return this KafkaSourceBuilder.
+	 */
+	public KafkaSourceBuilder<OUT> setAlignWatermarkThreshold(String alignWatermarkThreshold) {
+		return setProperty(KafkaSourceOptions.ALIGN_WATERMARK_THRESHOLD.key(), alignWatermarkThreshold);
+	}
+
+	/**
+	 * Sets the period to align the watermark of the KafkaSource.
+	 *
+	 * @param alignWatermarkPeriod the period to align the source reader watermark.
+	 * @return this KafkaSourceBuilder.
+	 */
+	public KafkaSourceBuilder<OUT> setAlignWatermarkPeriod(String alignWatermarkPeriod) {
+		return setProperty(KafkaSourceOptions.ALIGN_WATERMARK_PERIOD.key(), alignWatermarkPeriod);
+	}
+
+	/**
 	 * Set an arbitrary property for the KafkaSource and KafkaConsumer. The valid keys can be found
 	 * in {@link ConsumerConfig} and {@link KafkaSourceOptions}.
 	 *

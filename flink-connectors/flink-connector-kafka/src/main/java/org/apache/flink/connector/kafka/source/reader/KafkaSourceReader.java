@@ -24,8 +24,9 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
-import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
+import org.apache.flink.connector.base.source.reader.WatermarkAlignedSourceReaderBase;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
 import org.apache.flink.connector.kafka.source.reader.fetcher.KafkaSourceFetcherManager;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitState;
@@ -49,7 +50,7 @@ import java.util.function.Supplier;
  * The source reader for Kafka partitions.
  */
 public class KafkaSourceReader<T>
-		extends SingleThreadMultiplexSourceReaderBase<Tuple3<T, Long, Long>, T, KafkaPartitionSplit, KafkaPartitionSplitState> {
+		extends WatermarkAlignedSourceReaderBase<Tuple3<T, Long, Long>, T, KafkaPartitionSplit, KafkaPartitionSplitState> {
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceReader.class);
 	// These maps need to be concurrent because it will be accessed by both the main thread
 	// and the split fetcher thread in the callback.
@@ -67,7 +68,9 @@ public class KafkaSourceReader<T>
 			new KafkaSourceFetcherManager<>(elementsQueue, splitReaderSupplier::get),
 			recordEmitter,
 			config,
-			context);
+			context,
+			config.getLong(KafkaSourceOptions.ALIGN_WATERMARK_THRESHOLD),
+			config.getLong(KafkaSourceOptions.ALIGN_WATERMARK_PERIOD));
 		this.offsetsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
 		this.offsetsOfFinishedSplits = new ConcurrentHashMap<>();
 	}

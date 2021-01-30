@@ -21,10 +21,10 @@ package org.apache.flink.connector.kafka.source.reader.fetcher;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
-import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcher;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherTask;
-import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
+import org.apache.flink.connector.base.source.reader.fetcher.WatermarkAlignedSingleThreadFetcherManager;
+import org.apache.flink.connector.base.source.reader.splitreader.PausableSplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.kafka.source.reader.KafkaPartitionSplitReader;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
@@ -45,7 +45,7 @@ import java.util.function.Supplier;
  * {@link org.apache.flink.connector.kafka.source.reader.KafkaPartitionSplitReader}.
  */
 public class KafkaSourceFetcherManager<T>
-		extends SingleThreadFetcherManager<Tuple3<T, Long, Long>, KafkaPartitionSplit> {
+		extends WatermarkAlignedSingleThreadFetcherManager<Tuple3<T, Long, Long>, KafkaPartitionSplit> {
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceFetcherManager.class);
 
 	/**
@@ -58,7 +58,7 @@ public class KafkaSourceFetcherManager<T>
 	 */
 	public KafkaSourceFetcherManager(
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<T, Long, Long>>> elementsQueue,
-		Supplier<SplitReader<Tuple3<T, Long, Long>, KafkaPartitionSplit>> splitReaderSupplier) {
+		Supplier<PausableSplitReader<Tuple3<T, Long, Long>, KafkaPartitionSplit>> splitReaderSupplier) {
 		super(elementsQueue, splitReaderSupplier);
 	}
 

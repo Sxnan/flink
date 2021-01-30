@@ -19,7 +19,10 @@
 package org.apache.flink.connector.kafka.source.enumerator;
 
 import org.apache.flink.api.connector.source.ReaderInfo;
+import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
+import org.apache.flink.connector.base.source.event.GlobalWatermarkEvent;
+import org.apache.flink.connector.base.source.event.SourceReaderWatermarkEvent;
 import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
 import org.apache.flink.connector.kafka.source.KafkaSourceTestEnv;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
@@ -35,6 +38,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,11 +52,14 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Unit tests for {@link KafkaSourceEnumerator}.
@@ -226,7 +234,7 @@ public class KafkaEnumeratorTest {
 
 		final MockSplitEnumeratorContext<KafkaPartitionSplit> context2 = new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
 		try (KafkaSourceEnumerator enumerator =
-					createEnumerator(context2, ENABLE_PERIODIC_PARTITION_DISCOVERY, PRE_EXISTING_TOPICS, preexistingAssignments)) {
+					createEnumerator(context2, ENABLE_PERIODIC_PARTITION_DISCOVERY, PRE_EXISTING_TOPICS, preexistingAssignments, null)) {
 			enumerator.start();
 			context2.runPeriodicCallable(PARTITION_DISCOVERY_CALLABLE_INDEX);
 
@@ -235,6 +243,40 @@ public class KafkaEnumeratorTest {
 
 			registerReader(context2, enumerator, READER1);
 			verifyLastReadersAssignments(context2, Collections.singleton(READER1), PRE_EXISTING_TOPICS, 1);
+		}
+	}
+
+	@Test
+	public void testWorkWithWatermarkAlignments() throws Throwable {
+		MockSplitEnumeratorContext<KafkaPartitionSplit> context = new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+		try (KafkaSourceEnumerator enumerator = createEnumerator(context, ENABLE_PERIODIC_PARTITION_DISCOVERY, PRE_EXISTING_TOPICS, Collections.emptyMap(), 1L)) {
+			enumerator.start();
+
+			List<Callable<Future<?>>> periodicCallables = context.getPeriodicCallables();
+			assertEquals(2, periodicCallables.size());
+
+			for (int index = 1; index <= 4; index++) {
+				registerReader(context, enumerator, index);
+				enumerator.handleSourceEvent(index, new SourceReaderWatermarkEvent(index * 50L));
+			}
+
+			periodicCallables = context.getPeriodicCallables();
+			try {
+				for (Callable<Future<?>> periodicCallable : periodicCallables) {
+					periodicCallable.call().get();
+				}
+			} catch (Exception e) {
+				fail("Fail to handle the source event for watermark alignment.");
+			}
+
+			for (int index = 1; index <= 4; index++) {
+				List<SourceEvent> sourceEvents = context.getSentSourceEvent().get(index);
+				assertEquals(1, sourceEvents.size());
+				SourceEvent sourceEvent = sourceEvents.get(0);
+				assertTrue(sourceEvent instanceof GlobalWatermarkEvent);
+				assertEquals(50L,
+					((GlobalWatermarkEvent) sourceEvent).getGlobalWatermark().longValue());
+			}
 		}
 	}
 
@@ -276,7 +318,7 @@ public class KafkaEnumeratorTest {
 		if (includeDynamicTopic) {
 			topics.add(DYNAMIC_TOPIC_NAME);
 		}
-		return createEnumerator(enumContext, enablePeriodicPartitionDiscovery, topics, Collections.emptyMap());
+		return createEnumerator(enumContext, enablePeriodicPartitionDiscovery, topics, Collections.emptyMap(), null);
 	}
 
 	/**
@@ -287,7 +329,8 @@ public class KafkaEnumeratorTest {
 			MockSplitEnumeratorContext<KafkaPartitionSplit> enumContext,
 			boolean enablePeriodicPartitionDiscovery,
 			Collection<String> topicsToSubscribe,
-			Map<Integer, Set<KafkaPartitionSplit>> currentAssignments) {
+			Map<Integer, Set<KafkaPartitionSplit>> currentAssignments,
+			@Nullable Long alignWatermarkPeriod) {
 		// Use a TopicPatternSubscriber so that no exception if a subscribed topic hasn't been created yet.
 		StringJoiner topicNameJoiner = new StringJoiner("|");
 		topicsToSubscribe.forEach(topicNameJoiner::add);
@@ -300,6 +343,9 @@ public class KafkaEnumeratorTest {
 		Properties props = new Properties(KafkaSourceTestEnv.getConsumerProperties(StringDeserializer.class));
 		String partitionDiscoverInterval = enablePeriodicPartitionDiscovery ? "1" : "-1";
 		props.setProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(), partitionDiscoverInterval);
+		if (alignWatermarkPeriod != null) {
+			props.setProperty(KafkaSourceOptions.ALIGN_WATERMARK_PERIOD.key(), alignWatermarkPeriod.toString());
+		}
 
 		return new KafkaSourceEnumerator(
 				subscriber,

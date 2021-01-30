@@ -40,7 +40,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 /**
- * Unit test for {@link PausableSplitFetcherTest}.
+ * Unit test for {@link PausableSplitFetcher}.
  */
 public class PausableSplitFetcherTest {
 	@Test
@@ -135,7 +135,7 @@ public class PausableSplitFetcherTest {
 		public Map<String, SplitState> getSplitState() {
 			Map<String, SplitState> res = new HashMap<>();
 			splits.keySet().forEach(splitId -> res.put(splitId, SplitState.RUN));
-			pauseSplits.keySet().forEach(splitID -> res.put(splitID, SplitState.PAUSE));
+			pauseSplits.keySet().forEach(splitId -> res.put(splitId, SplitState.PAUSE));
 			return res;
 		}
 	}

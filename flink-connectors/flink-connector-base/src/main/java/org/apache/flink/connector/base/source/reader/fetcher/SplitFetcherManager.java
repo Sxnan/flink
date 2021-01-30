@@ -193,4 +193,9 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 	public int getNumAliveFetchers() {
 		return fetchers.size();
 	}
+
+	@VisibleForTesting
+	public Map<Integer, SplitFetcher<E, SplitT>> getFetchers() {
+		return fetchers;
+	}
 }
