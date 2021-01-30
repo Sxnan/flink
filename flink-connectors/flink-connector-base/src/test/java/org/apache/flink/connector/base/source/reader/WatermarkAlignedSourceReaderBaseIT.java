@@ -73,8 +73,6 @@ public class WatermarkAlignedSourceReaderBaseIT {
 
 				@Override
 				public void invoke(Integer value, Context context) throws Exception {
-					System.out.println(getRuntimeContext().getIndexOfThisSubtask() + " value: " + value);
-					System.out.println(getRuntimeContext().getIndexOfThisSubtask() + " watermark: " + context.currentWatermark());
 				}
 			}).setParallelism(1);
 		env.execute();

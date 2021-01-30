@@ -44,7 +44,7 @@ public abstract class WatermarkAlignedSplitEnumerator<SplitT extends SourceSplit
 	implements SplitEnumerator<SplitT, CheckpointT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(WatermarkAlignedSplitEnumerator.class);
-	private final SplitEnumeratorContext<SplitT> context;
+	public final SplitEnumeratorContext<SplitT> context;
 	private final Map<Integer, Long> sourceReaderWatermarks = new HashMap<>();
 	private final Set<Integer> subtaskIds = new HashSet<>();
 	private final long period;
@@ -56,7 +56,9 @@ public abstract class WatermarkAlignedSplitEnumerator<SplitT extends SourceSplit
 
 	@Override
 	public void start() {
-		context.callAsync(this::getGlobalWatermark, this::sendGlobalWatermark, 0, period);
+		if (period > 0) {
+			context.callAsync(this::getGlobalWatermark, this::sendGlobalWatermark, 0, period);
+		}
 	}
 
 	@Override
@@ -82,7 +84,7 @@ public abstract class WatermarkAlignedSplitEnumerator<SplitT extends SourceSplit
 
 	@Override
 	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-		if (sourceEvent instanceof SourceReaderWatermarkEvent) {
+		if (period > 0 && sourceEvent instanceof SourceReaderWatermarkEvent) {
 			final Long watermark = ((SourceReaderWatermarkEvent) sourceEvent).getWatermark();
 			if (watermark == null) {
 				sourceReaderWatermarks.remove(subtaskId);
