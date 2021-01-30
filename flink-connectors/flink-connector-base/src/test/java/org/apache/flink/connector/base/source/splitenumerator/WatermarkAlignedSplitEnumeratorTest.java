@@ -36,59 +36,58 @@ import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-/**
- * Unit test for {@link WatermarkAlignedSplitEnumerator}.
- */
+/** Unit test for {@link WatermarkAlignedSplitEnumerator}. */
 public class WatermarkAlignedSplitEnumeratorTest {
 
-	@Test
-	public void testSendGlobalWatermarkEvent() throws Exception {
-		final MockSplitEnumeratorContext<MockSourceSplit> context =
-			new MockSplitEnumeratorContext<>(1);
-		final MockWatermarkAlignedSplitEnumerator splitEnumerator =
-			new MockWatermarkAlignedSplitEnumerator(context, 1);
-		splitEnumerator.start();
-		splitEnumerator.addReader(0);
-		splitEnumerator.handleSourceEvent(0, new SourceReaderWatermarkEvent(100L));
-		final List<Callable<Future<?>>> periodicCallables = context.getPeriodicCallables();
-		assertEquals(1, periodicCallables.size());
-		periodicCallables.get(0).call().get();
-		final List<SourceEvent> sourceEvents = context.getSentSourceEvent().get(0);
-		assertEquals(1, sourceEvents.size());
-		final SourceEvent sourceEvent = sourceEvents.get(0);
-		assertTrue(sourceEvent instanceof GlobalWatermarkEvent);
-		assertEquals(100L,
-			((GlobalWatermarkEvent) sourceEvent).getGlobalWatermark().longValue());
-	}
+    @Test
+    public void testSendGlobalWatermarkEvent() throws Exception {
+        final MockSplitEnumeratorContext<MockSourceSplit> context =
+                new MockSplitEnumeratorContext<>(1);
+        final MockWatermarkAlignedSplitEnumerator splitEnumerator =
+                new MockWatermarkAlignedSplitEnumerator(context, 1);
+        splitEnumerator.start();
+        splitEnumerator.addReader(0);
+        splitEnumerator.handleSourceEvent(0, new SourceReaderWatermarkEvent(100L));
+        final List<Callable<Future<?>>> periodicCallables = context.getPeriodicCallables();
+        assertEquals(1, periodicCallables.size());
+        try {
+            periodicCallables.get(0).call().get();
+        } catch (Exception e) {
+            fail("Fail to handle the source event for watermark alignment.");
+        }
+        final List<SourceEvent> sourceEvents = context.getSentSourceEvent().get(0);
+        assertEquals(1, sourceEvents.size());
+        final SourceEvent sourceEvent = sourceEvents.get(0);
+        assertTrue(sourceEvent instanceof GlobalWatermarkEvent);
+        assertEquals(100L, ((GlobalWatermarkEvent) sourceEvent).getGlobalWatermark().longValue());
+    }
 
-	static class MockWatermarkAlignedSplitEnumerator
-		extends WatermarkAlignedSplitEnumerator<MockSourceSplit, Integer> {
+    static class MockWatermarkAlignedSplitEnumerator
+            extends WatermarkAlignedSplitEnumerator<MockSourceSplit, Integer> {
 
-		public MockWatermarkAlignedSplitEnumerator(
-			SplitEnumeratorContext<MockSourceSplit> context,
-			long period) {
-			super(context, period);
-		}
+        public MockWatermarkAlignedSplitEnumerator(
+                SplitEnumeratorContext<MockSourceSplit> context, long period) {
+            super(context, period);
+        }
 
-		@Override
-		public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
-			// do nothing
-		}
+        @Override
+        public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
+            // do nothing
+        }
 
-		@Override
-		public void addSplitsBack(List<MockSourceSplit> splits, int subtaskId) {
-			// do nothing
-		}
+        @Override
+        public void addSplitsBack(List<MockSourceSplit> splits, int subtaskId) {
+            // do nothing
+        }
 
-		@Override
-		public Integer snapshotState() throws Exception {
-			return null;
-		}
+        @Override
+        public Integer snapshotState() throws Exception {
+            return null;
+        }
 
-		@Override
-		public void close() throws IOException {
-
-		}
-	}
+        @Override
+        public void close() throws IOException {}
+    }
 }

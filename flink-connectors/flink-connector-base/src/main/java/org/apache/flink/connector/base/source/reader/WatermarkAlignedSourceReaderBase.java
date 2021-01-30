@@ -53,10 +53,10 @@ public abstract class WatermarkAlignedSourceReaderBase<
 
     private static final Logger LOG =
             LoggerFactory.getLogger(WatermarkAlignedSourceReaderBase.class);
-    private final WatermarkAlignedSplitFetcherManager<E, SplitT> splitFetcherManager;
+    public final WatermarkAlignedSplitFetcherManager<E, SplitT> splitFetcherManager;
     private final long threshold;
-    private final ScheduledExecutorService executor;
     private final long reportPeriod;
+    private final ScheduledExecutorService executor;
 
     public WatermarkAlignedSourceReaderBase(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
@@ -84,19 +84,21 @@ public abstract class WatermarkAlignedSourceReaderBase<
     @Override
     public void start() {
         super.start();
-        executor.scheduleAtFixedRate(
-                () -> {
-                    try {
-                        final SourceReaderWatermarkEvent sourceEvent =
-                                new SourceReaderWatermarkEvent(getSourceReaderWatermark());
-                        context.sendSourceEventToCoordinator(sourceEvent);
-                    } catch (Throwable e) {
-                        LOG.error("Error on sending split status", e);
-                    }
-                },
-                0,
-                reportPeriod,
-                TimeUnit.MILLISECONDS);
+        if (threshold > 0 && reportPeriod > 0) {
+            executor.scheduleAtFixedRate(
+                    () -> {
+                        try {
+                            final SourceReaderWatermarkEvent sourceEvent =
+                                    new SourceReaderWatermarkEvent(getSourceReaderWatermark());
+                            context.sendSourceEventToCoordinator(sourceEvent);
+                        } catch (Throwable e) {
+                            LOG.error("Error on sending split status", e);
+                        }
+                    },
+                    0,
+                    reportPeriod,
+                    TimeUnit.MILLISECONDS);
+        }
     }
 
     private Long getSourceReaderWatermark() {
@@ -114,7 +116,7 @@ public abstract class WatermarkAlignedSourceReaderBase<
 
     @Override
     public void handleSourceEvents(SourceEvent sourceEvent) {
-        if (sourceEvent instanceof GlobalWatermarkEvent) {
+        if (threshold > 0 && reportPeriod > 0 && sourceEvent instanceof GlobalWatermarkEvent) {
             GlobalWatermarkEvent globalWatermarkEvent = (GlobalWatermarkEvent) sourceEvent;
             handleGlobalWatermarkEvent(globalWatermarkEvent);
             return;

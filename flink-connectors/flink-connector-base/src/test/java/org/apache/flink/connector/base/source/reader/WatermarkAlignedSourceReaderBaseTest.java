@@ -38,6 +38,8 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -50,7 +52,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/** Unit test for {@link WatermarkAlignedSourceReaderBaseTest}. */
+/** Unit test for {@link WatermarkAlignedSourceReaderBase}. */
 public class WatermarkAlignedSourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
 
     @Test
@@ -81,8 +83,14 @@ public class WatermarkAlignedSourceReaderBaseTest extends SourceReaderTestBase<M
     @Test
     public void testHandleGlobalWatermarkEvent() throws Exception {
         final MockSourceReaderContext sourceReaderContext = new MockSourceReaderContext();
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
+                new FutureCompletingBlockingQueue<>();
+        WatermarkAlignedSingleThreadFetcherManager<int[], MockSourceSplit> fetcherManager =
+                new WatermarkAlignedSingleThreadFetcherManager<>(
+                        elementsQueue, () -> new MockPausableSplitReader(1, true));
+        fetcherManager = Mockito.spy(fetcherManager);
         WatermarkAlignedSourceReaderBase<int[], Integer, MockSourceSplit, AtomicInteger>
-                sourceReader = createReader(sourceReaderContext);
+                sourceReader = createReader(elementsQueue, fetcherManager, sourceReaderContext);
 
         ValidatingSourceOutput output = new WatermarkAlignedReaderOutput();
         MockSourceSplit split = new MockSourceSplit(0);
@@ -99,9 +107,11 @@ public class WatermarkAlignedSourceReaderBaseTest extends SourceReaderTestBase<M
         output.emitWatermark(new Watermark(1000L));
         sourceReader.handleSourceEvents(new GlobalWatermarkEvent(0L));
 
-        Thread.sleep(100);
-        splitStatuses = sourceReader.getAllSplitWatermarks();
-        assertEquals(0, splitStatuses.size());
+        final ArgumentCaptor<Map<String, PausableSplitReader.SplitState>> mapArgumentCaptor =
+                ArgumentCaptor.forClass(Map.class);
+        Mockito.verify(fetcherManager).updateSplitsState(mapArgumentCaptor.capture());
+        final Map<String, PausableSplitReader.SplitState> value = mapArgumentCaptor.getValue();
+        assertEquals(PausableSplitReader.SplitState.PAUSE, value.get("0"));
     }
 
     private void addRecordToSplit(MockSourceSplit split, int numOfRecord) {
@@ -117,17 +127,34 @@ public class WatermarkAlignedSourceReaderBaseTest extends SourceReaderTestBase<M
     @Override
     public WatermarkAlignedSourceReaderBase<int[], Integer, MockSourceSplit, AtomicInteger>
             createReader() {
-        return createReader(null);
-    }
-
-    private WatermarkAlignedSourceReaderBase<int[], Integer, MockSourceSplit, AtomicInteger>
-            createReader(SourceReaderContext sourceReaderContext) {
         FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
-        return new MockWatermarkAlignedSourceReaderBase(
+        return createReader(
                 elementsQueue,
                 new WatermarkAlignedSingleThreadFetcherManager<>(
                         elementsQueue, () -> new MockPausableSplitReader(1, true)),
+                null);
+    }
+
+    private WatermarkAlignedSourceReaderBase<int[], Integer, MockSourceSplit, AtomicInteger>
+            createReader(MockSourceReaderContext sourceReaderContext) {
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
+                new FutureCompletingBlockingQueue<>();
+        return createReader(
+                elementsQueue,
+                new WatermarkAlignedSingleThreadFetcherManager<>(
+                        elementsQueue, () -> new MockPausableSplitReader(1, true)),
+                sourceReaderContext);
+    }
+
+    private WatermarkAlignedSourceReaderBase<int[], Integer, MockSourceSplit, AtomicInteger>
+            createReader(
+                    FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue,
+                    WatermarkAlignedSplitFetcherManager<int[], MockSourceSplit> splitFetcherManager,
+                    SourceReaderContext sourceReaderContext) {
+        return new MockWatermarkAlignedSourceReaderBase(
+                elementsQueue,
+                splitFetcherManager,
                 new MockRecordEmitter(),
                 getConfig(),
                 sourceReaderContext);
@@ -273,6 +300,7 @@ public class WatermarkAlignedSourceReaderBaseTest extends SourceReaderTestBase<M
     }
 
     private static class WatermarkAlignedReaderOutput extends ValidatingSourceOutput {
+
         private Long lastEmittedWatermark = Long.MIN_VALUE;
 
         @Override
