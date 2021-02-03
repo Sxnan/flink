@@ -20,9 +20,9 @@ package org.apache.flink.connector.kafka.source.enumerator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.connector.base.source.splitenumerator.WatermarkAlignedSplitEnumerator;
 import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
@@ -57,14 +57,13 @@ import java.util.concurrent.ExecutionException;
  * The enumerator class for Kafka source.
  */
 @Internal
-public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> {
+public class KafkaSourceEnumerator extends WatermarkAlignedSplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> {
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceEnumerator.class);
 	private final KafkaSubscriber subscriber;
 	private final OffsetsInitializer startingOffsetInitializer;
 	private final OffsetsInitializer stoppingOffsetInitializer;
 	private final Properties properties;
 	private final long partitionDiscoveryIntervalMs;
-	private final SplitEnumeratorContext<KafkaPartitionSplit> context;
 
 	// The internal states of the enumerator.
 	/** This set is only accessed by the partition discovery callable in the callAsync() method, i.e worker thread. */
@@ -97,12 +96,13 @@ public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSpli
 			Properties properties,
 			SplitEnumeratorContext<KafkaPartitionSplit> context,
 			Map<Integer, Set<KafkaPartitionSplit>> currentSplitsAssignments) {
+		super(context, KafkaSourceOptions.getOption(properties,
+			KafkaSourceOptions.ALIGN_WATERMARK_PERIOD,
+			Long::parseLong));
 		this.subscriber = subscriber;
 		this.startingOffsetInitializer = startingOffsetInitializer;
 		this.stoppingOffsetInitializer = stoppingOffsetInitializer;
 		this.properties = properties;
-		this.context = context;
-
 		this.discoveredPartitions = new HashSet<>();
 		this.readerIdToSplitAssignments = new HashMap<>(currentSplitsAssignments);
 		this.readerIdToSplitAssignments.forEach((reader, splits) ->
@@ -134,6 +134,7 @@ public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSpli
 					this::discoverAndInitializePartitionSplit,
 					this::handlePartitionSplitChanges);
 		}
+		super.start();
 	}
 
 	@Override
@@ -151,6 +152,7 @@ public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSpli
 	public void addReader(int subtaskId) {
 		LOG.debug("Adding reader {} to KafkaSourceEnumerator for consumer group {}.", subtaskId, consumerGroupId);
 		assignPendingPartitionSplits();
+		super.addReader(subtaskId);
 	}
 
 	@Override

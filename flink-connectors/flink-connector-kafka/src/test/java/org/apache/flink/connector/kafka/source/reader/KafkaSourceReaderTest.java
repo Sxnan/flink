@@ -18,9 +18,14 @@
 
 package org.apache.flink.connector.kafka.source.reader;
 
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.connector.base.source.event.GlobalWatermarkEvent;
+import org.apache.flink.connector.base.source.event.SourceReaderWatermarkEvent;
+import org.apache.flink.connector.base.source.reader.splitreader.PausableSplitReader;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.KafkaSourceTestEnv;
@@ -48,12 +53,14 @@ import org.junit.Test;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -183,6 +190,62 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 		}
 	}
 
+	@Test
+	public void testSendSourceReaderWatermarkEvent() throws Exception {
+		final String groupId = "testSendSourceReaderWatermarkEvent";
+		final TestingReaderContext readerContext = new TestingReaderContext();
+		try (KafkaSourceReader<Integer> reader = (KafkaSourceReader<Integer>) createReader(Boundedness.CONTINUOUS_UNBOUNDED, groupId, 1L, 1L, readerContext)) {
+			reader.start();
+			reader.addSplits(getSplits(NUM_SPLITS, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED));
+			ValidatingSourceOutput output = new WatermarkAlignedSourceOutput();
+			long checkpointId = 0;
+			do {
+				checkpointId++;
+				reader.pollNext(output);
+				reader.snapshotState(checkpointId);
+			} while (output.count() < TOTAL_NUM_RECORDS);
+			reader.notifyCheckpointComplete(checkpointId);
+			pollUntil(reader, output, () -> reader.getOffsetsToCommit().isEmpty(),
+					"The offset commit did not finish before timeout.");
+		}
+
+		Thread.sleep(1000);
+		readerContext.getSentEvents().forEach(sourceEvent -> assertTrue(sourceEvent instanceof SourceReaderWatermarkEvent));
+		assertTrue(readerContext.getSentEvents().stream().anyMatch(
+				sourceEvent -> new Long(Long.MIN_VALUE).equals(((SourceReaderWatermarkEvent) sourceEvent).getWatermark())));
+	}
+
+	@Test
+	public void testHandleSourceReaderWatermarkEvent() throws Exception {
+		final String groupId = "testHandleSourceReaderWatermarkEvent";
+		final TestingReaderContext readerContext = new TestingReaderContext();
+		try (KafkaSourceReader<Integer> reader = (KafkaSourceReader<Integer>) createReader(Boundedness.CONTINUOUS_UNBOUNDED, groupId, 1L, 1L, readerContext)) {
+			reader.start();
+			reader.addSplits(getSplits(NUM_SPLITS, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED));
+			ValidatingSourceOutput output = new WatermarkAlignedSourceOutput();
+			long checkpointId = 0;
+			do {
+				checkpointId++;
+				reader.pollNext(output);
+				reader.snapshotState(checkpointId);
+			} while (output.count() < TOTAL_NUM_RECORDS);
+			reader.notifyCheckpointComplete(checkpointId);
+			pollUntil(reader, output, () -> reader.getOffsetsToCommit().isEmpty(),
+					"The offset commit did not finish before timeout.");
+
+			output.emitWatermark(new Watermark(1000L));
+			reader.handleSourceEvents(new GlobalWatermarkEvent(0L));
+
+			Map<String, PausableSplitReader.SplitState> desiredStates = new HashMap<>();
+			final String splitId = new TopicPartition(TOPIC, 0).toString();
+			desiredStates.put(splitId, PausableSplitReader.SplitState.RUN);
+			reader.splitFetcherManager.updateSplitsState(desiredStates);
+			Thread.sleep(1000);
+			assertFalse(((KafkaPartitionSplitReader<Integer>) reader.splitFetcherManager.getFetchers().get(0).getSplitReader())
+					.getPausedSplits().contains(splitId));
+		}
+	}
+
 	// ------------------------------------------
 
 	@Override
@@ -218,7 +281,16 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
 	private SourceReader<Integer, KafkaPartitionSplit> createReader(
 			Boundedness boundedness,
-			String groupId) {
+			String groupId){
+		return createReader(boundedness, groupId, null, null, new TestingReaderContext());
+	}
+
+	private SourceReader<Integer, KafkaPartitionSplit> createReader(
+			Boundedness boundedness,
+			String groupId,
+			Long alignWatermarkThreshold,
+			Long alignWatermarkPeriod,
+			SourceReaderContext readerContext) {
 		KafkaSourceBuilder<Integer> builder = KafkaSource.<Integer>builder()
 			.setClientIdPrefix("KafkaSourceReaderTest")
 			.setDeserializer(KafkaRecordDeserializer.valueOnly(IntegerDeserializer.class))
@@ -231,7 +303,15 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 			builder.setBounded(OffsetsInitializer.latest());
 		}
 
-		return builder.build().createReader(new TestingReaderContext());
+		if (alignWatermarkThreshold != null) {
+			builder.setAlignWatermarkThreshold(alignWatermarkThreshold.toString());
+		}
+
+		if (alignWatermarkPeriod != null) {
+			builder.setAlignWatermarkPeriod(alignWatermarkPeriod.toString());
+		}
+
+		return builder.build().createReader(readerContext);
 	}
 
 	private void pollUntil(
@@ -266,5 +346,20 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 			}
 		}
 		return records;
+	}
+
+	private static class WatermarkAlignedSourceOutput extends ValidatingSourceOutput {
+
+		private Long lastEmittedWatermark = Long.MIN_VALUE;
+
+		@Override
+		public void emitWatermark(Watermark watermark) {
+			lastEmittedWatermark = watermark.getTimestamp();
+		}
+
+		@Override
+		public Long getCurrentWatermark() {
+			return lastEmittedWatermark;
+		}
 	}
 }

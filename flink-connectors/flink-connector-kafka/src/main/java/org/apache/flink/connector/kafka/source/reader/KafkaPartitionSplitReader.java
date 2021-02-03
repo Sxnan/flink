@@ -18,9 +18,10 @@
 
 package org.apache.flink.connector.kafka.source.reader;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
-import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
+import org.apache.flink.connector.base.source.reader.splitreader.PausableSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
@@ -55,15 +56,16 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 /**
- * A {@link SplitReader} implementation that reads records from Kafka partitions.
+ * A {@link PausableSplitReader} implementation that reads records from Kafka partitions.
  *
  * <p>The returned type are in the format of {@code tuple3(record, offset and timestamp}.
  *
  * @param <T> the type of the record to be emitted from the Source.
  */
-public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long, Long>, KafkaPartitionSplit> {
+public class KafkaPartitionSplitReader<T> implements PausableSplitReader<Tuple3<T, Long, Long>, KafkaPartitionSplit> {
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaPartitionSplitReader.class);
 	private static final long POLL_TIMEOUT = 10000L;
 
@@ -73,6 +75,7 @@ public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long,
 	private final SimpleCollector<T> collector;
 	private final String groupId;
 	private final int subtaskId;
+	private final Set<String> pausedSplits;
 
 	public KafkaPartitionSplitReader(
 			Properties props,
@@ -87,6 +90,7 @@ public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long,
 		this.collector = new SimpleCollector<>();
 		this.groupId = consumerProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
 		this.subtaskId = subtaskId;
+		this.pausedSplits = new HashSet<>();
 	}
 
 	@Override
@@ -195,6 +199,35 @@ public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long,
 	@Override
 	public void close() throws Exception {
 		consumer.close();
+	}
+
+	@Override
+	public void pause(Set<String> splitsToPause) {
+		consumer.pause(getTopicPartitionsFromSplits(splitsToPause));
+		pausedSplits.addAll(splitsToPause);
+	}
+
+	@Override
+	public void resume(Set<String> splitsToResume) {
+		consumer.resume(getTopicPartitionsFromSplits(splitsToResume));
+		pausedSplits.removeAll(splitsToResume);
+	}
+
+	@Override
+	public Map<String, SplitState> getSplitState() {
+		Map<String, SplitState> splitStates = new HashMap<>();
+		consumer.assignment().forEach(topicPartition -> splitStates.put(topicPartition.toString(), SplitState.RUN));
+		pausedSplits.forEach(splitId -> splitStates.put(splitId, SplitState.PAUSE));
+		return splitStates;
+	}
+
+	private List<TopicPartition> getTopicPartitionsFromSplits(Set<String> splits) {
+		return splits.stream().map(splitId -> {
+			final String topic = splitId.substring(0, splitId.lastIndexOf("-"));
+			final String[] splitIdSplits = splitId.split("-");
+			final int partition = Integer.parseInt(splitIdSplits[splitIdSplits.length - 1]);
+			return new TopicPartition(topic, partition);
+		}).collect(Collectors.toList());
 	}
 
 	// ---------------
@@ -330,6 +363,11 @@ public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long,
 
 	private long getStoppingOffset(TopicPartition tp) {
 		return stoppingOffsets.getOrDefault(tp, Long.MAX_VALUE);
+	}
+
+	@VisibleForTesting
+	public Set<String> getPausedSplits() {
+		return pausedSplits;
 	}
 
 	// ---------------- private helper class ------------------------
