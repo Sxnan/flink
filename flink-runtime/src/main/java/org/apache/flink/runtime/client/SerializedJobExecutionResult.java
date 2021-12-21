@@ -87,6 +87,6 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
         Map<String, OptionalFailure<Object>> accumulators =
                 AccumulatorHelper.deserializeAccumulators(accumulatorResults, loader);
 
-        return new JobExecutionResult(jobId, netRuntime, accumulators);
+        return new JobExecutionResult(jobId, netRuntime, accumulators, null);
     }
 }

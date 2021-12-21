@@ -22,8 +22,10 @@ import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.PersistedIntermediateDataSetDescriptor;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
@@ -42,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 
 /** An archived execution graph represents a serializable form of an {@link ExecutionGraph}. */
 public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializable {
@@ -89,6 +92,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     private final ArchivedExecutionConfig archivedExecutionConfig;
     private final boolean isStoppable;
     private final Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
+    private final Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> persistedIntermediateDataSetDescriptors;
 
     @Nullable private final CheckpointCoordinatorConfiguration jobCheckpointingConfiguration;
 
@@ -111,6 +115,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators,
             ArchivedExecutionConfig executionConfig,
             boolean isStoppable,
+            Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> persistedIntermediateDataSetDescriptors,
             @Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
             @Nullable CheckpointStatsSnapshot checkpointStatsSnapshot,
             @Nullable String stateBackendName,
@@ -128,6 +133,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         this.serializedUserAccumulators = Preconditions.checkNotNull(serializedUserAccumulators);
         this.archivedExecutionConfig = Preconditions.checkNotNull(executionConfig);
         this.isStoppable = isStoppable;
+        this.persistedIntermediateDataSetDescriptors = persistedIntermediateDataSetDescriptors;
         this.jobCheckpointingConfiguration = jobCheckpointingConfiguration;
         this.checkpointStatsSnapshot = checkpointStatsSnapshot;
         this.stateBackendName = stateBackendName;
@@ -324,6 +330,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 serializedUserAccumulators,
                 executionGraph.getArchivedExecutionConfig(),
                 executionGraph.isStoppable(),
+                executionGraph.getPersistedIntermediateResult(),
                 executionGraph.getCheckpointCoordinatorConfiguration(),
                 executionGraph.getCheckpointStatsSnapshot(),
                 executionGraph.getStateBackendName().orElse(null),
@@ -375,11 +382,17 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 serializedUserAccumulators,
                 new ExecutionConfig().archive(),
                 false,
+                Collections.emptyMap(),
                 checkpointingSettings == null
                         ? null
                         : checkpointingSettings.getCheckpointCoordinatorConfiguration(),
                 checkpointingSettings == null ? null : CheckpointStatsSnapshot.empty(),
                 checkpointingSettings == null ? null : "Unknown",
                 checkpointingSettings == null ? null : "Unknown");
+    }
+
+    @Override
+    public Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> getPersistedIntermediateResult() {
+        return persistedIntermediateDataSetDescriptors;
     }
 }

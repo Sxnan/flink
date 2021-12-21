@@ -28,6 +28,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingPipelinedRegion;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -112,7 +113,8 @@ public class RegionPartitionGroupReleaseStrategy
             consumerRegionGroupExecutionViewMaintainer.regionFinished(pipelinedRegion);
 
             return filterReleasablePartitionGroups(
-                    pipelinedRegion.getAllBlockingConsumedPartitionGroups());
+                    pipelinedRegion.getAllBlockingConsumedPartitionGroups(),
+                    pipelinedRegion.getAllPersistentConsumedPartitionGroups());
         }
         return Collections.emptyList();
     }
@@ -140,14 +142,16 @@ public class RegionPartitionGroupReleaseStrategy
     }
 
     private List<ConsumedPartitionGroup> filterReleasablePartitionGroups(
-            final Iterable<ConsumedPartitionGroup> consumedPartitionGroups) {
+            final Iterable<ConsumedPartitionGroup> consumedPartitionGroups,
+            final Collection<ConsumedPartitionGroup> persistentPartitionGroups) {
 
         final List<ConsumedPartitionGroup> releasablePartitionGroups = new ArrayList<>();
 
         for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
             final ConsumerRegionGroupExecutionView consumerRegionGroup =
                     partitionGroupConsumerRegions.get(consumedPartitionGroup);
-            if (consumerRegionGroup.isFinished()) {
+            if (consumerRegionGroup.isFinished() &&
+                    !persistentPartitionGroups.contains(consumedPartitionGroup)) {
                 // At present, there's only one ConsumerVertexGroup for each
                 // ConsumedPartitionGroup, so if a ConsumedPartitionGroup is fully consumed, all
                 // its partitions are releasable.

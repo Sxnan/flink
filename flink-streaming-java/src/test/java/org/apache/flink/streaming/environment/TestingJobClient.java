@@ -46,7 +46,7 @@ public class TestingJobClient implements JobClient {
     @Override
     public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
         return CompletableFuture.completedFuture(
-                new JobExecutionResult(new JobID(), 0L, Collections.emptyMap()));
+                new JobExecutionResult(new JobID(), 0L, Collections.emptyMap(), null));
     }
 
     @Override

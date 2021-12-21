@@ -25,6 +25,7 @@ import org.apache.flink.util.OptionalFailure;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -39,18 +40,29 @@ public class JobExecutionResult extends JobSubmissionResult {
 
     private final Map<String, OptionalFailure<Object>> accumulatorResults;
 
+    private final Set<PersistedIntermediateDataSetDescriptor> cachedIntermediateDataSets;
+
     /**
      * Creates a new JobExecutionResult.
-     *
-     * @param jobID The job's ID.
+     *  @param jobID The job's ID.
      * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer)
      *     in milliseconds
      * @param accumulators A map of all accumulators produced by the job.
+     * @param cachedIntermediateDataSets
      */
     public JobExecutionResult(
-            JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators) {
+            JobID jobID,
+            long netRuntime,
+            Map<String, OptionalFailure<Object>> accumulators,
+            Set<PersistedIntermediateDataSetDescriptor> cachedIntermediateDataSets) {
         super(jobID);
         this.netRuntime = netRuntime;
+
+        if (cachedIntermediateDataSets != null) {
+            this.cachedIntermediateDataSets = cachedIntermediateDataSets;
+        } else {
+            this.cachedIntermediateDataSets = Collections.emptySet();
+        }
 
         if (accumulators != null) {
             this.accumulatorResults = accumulators;
@@ -172,6 +184,10 @@ public class JobExecutionResult extends JobSubmissionResult {
      */
     @Deprecated
     public static JobExecutionResult fromJobSubmissionResult(JobSubmissionResult result) {
-        return new JobExecutionResult(result.getJobID(), -1, null);
+        return new JobExecutionResult(result.getJobID(), -1, null, null);
+    }
+
+    public Set<PersistedIntermediateDataSetDescriptor> getCachedIntermediateDataSets() {
+        return cachedIntermediateDataSets;
     }
 }

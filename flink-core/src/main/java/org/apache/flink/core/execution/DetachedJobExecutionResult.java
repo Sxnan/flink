@@ -43,7 +43,7 @@ public final class DetachedJobExecutionResult extends JobExecutionResult {
                     + " runtime, etc. are not available. ";
 
     public DetachedJobExecutionResult(final JobID jobID) {
-        super(jobID, -1, null);
+        super(jobID, -1, null, null);
     }
 
     @Override

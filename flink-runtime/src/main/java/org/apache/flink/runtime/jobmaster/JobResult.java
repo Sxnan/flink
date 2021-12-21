@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.PersistedIntermediateDataSetDescriptor;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -37,9 +38,12 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -65,13 +69,15 @@ public class JobResult implements Serializable {
 
     /** Stores the cause of the job failure, or {@code null} if the job finished successfully. */
     @Nullable private final SerializedThrowable serializedThrowable;
+    private final Set<PersistedIntermediateDataSetDescriptor> persistedIntermediateDataSetDescriptors;
 
     private JobResult(
             final JobID jobId,
             final ApplicationStatus applicationStatus,
             final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
             final long netRuntime,
-            @Nullable final SerializedThrowable serializedThrowable) {
+            @Nullable final SerializedThrowable serializedThrowable,
+            Set<PersistedIntermediateDataSetDescriptor> persistedIntermediateDataSetDescriptors) {
 
         checkArgument(netRuntime >= 0, "netRuntime must be greater than or equals 0");
 
@@ -80,6 +86,7 @@ public class JobResult implements Serializable {
         this.accumulatorResults = requireNonNull(accumulatorResults);
         this.netRuntime = netRuntime;
         this.serializedThrowable = serializedThrowable;
+        this.persistedIntermediateDataSetDescriptors = persistedIntermediateDataSetDescriptors;
     }
 
     /** Returns {@code true} if the job finished successfully. */
@@ -128,7 +135,8 @@ public class JobResult implements Serializable {
             return new JobExecutionResult(
                     jobId,
                     netRuntime,
-                    AccumulatorHelper.deserializeAccumulators(accumulatorResults, classLoader));
+                    AccumulatorHelper.deserializeAccumulators(accumulatorResults, classLoader),
+                    persistedIntermediateDataSetDescriptors);
         } else {
             final Throwable cause;
 
@@ -172,6 +180,8 @@ public class JobResult implements Serializable {
 
         private SerializedThrowable serializedThrowable;
 
+        private Set<PersistedIntermediateDataSetDescriptor> persistedIntermediateDataSetDescriptors;
+
         public Builder jobId(final JobID jobId) {
             this.jobId = jobId;
             return this;
@@ -198,13 +208,19 @@ public class JobResult implements Serializable {
             return this;
         }
 
+        public Builder persistedIntermediateDataSets(final Set<PersistedIntermediateDataSetDescriptor> pids) {
+            this.persistedIntermediateDataSetDescriptors = pids;
+            return this;
+        }
+
         public JobResult build() {
             return new JobResult(
                     jobId,
                     applicationStatus,
                     accumulatorResults == null ? Collections.emptyMap() : accumulatorResults,
                     netRuntime,
-                    serializedThrowable);
+                    serializedThrowable,
+                    persistedIntermediateDataSetDescriptors);
         }
     }
 
@@ -242,6 +258,12 @@ public class JobResult implements Serializable {
         final long guardedNetRuntime = Math.max(netRuntime, 0L);
         builder.netRuntime(guardedNetRuntime);
         builder.accumulatorResults(accessExecutionGraph.getAccumulatorsSerialized());
+        final Collection<PersistedIntermediateDataSetDescriptor> intermediateDataSetDescriptors =
+                accessExecutionGraph
+                .getPersistedIntermediateResult()
+                .values();
+        builder.persistedIntermediateDataSets(new HashSet<>(intermediateDataSetDescriptors));
+
 
         if (jobStatus == JobStatus.FAILED) {
             final ErrorInfo errorInfo = accessExecutionGraph.getFailureInfo();

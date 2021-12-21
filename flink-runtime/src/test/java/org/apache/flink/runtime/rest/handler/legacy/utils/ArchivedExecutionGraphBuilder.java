@@ -21,10 +21,12 @@ package org.apache.flink.runtime.rest.handler.legacy.utils;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.PersistedIntermediateDataSetDescriptor;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
@@ -53,6 +55,7 @@ public class ArchivedExecutionGraphBuilder {
     private ArchivedExecutionConfig archivedExecutionConfig;
     private boolean isStoppable;
     private Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
+    private Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> persistedIntermediateDataSetDescriptors;
 
     public ArchivedExecutionGraphBuilder setJobID(JobID jobID) {
         this.jobID = jobID;
@@ -141,10 +144,10 @@ public class ArchivedExecutionGraphBuilder {
                 jsonPlan != null
                         ? jsonPlan
                         : "{\"jobid\":\""
-                                + jobID
-                                + "\", \"name\":\""
-                                + jobName
-                                + "\", \"nodes\":[]}",
+                        + jobID
+                        + "\", \"name\":\""
+                        + jobName
+                        + "\", \"nodes\":[]}",
                 archivedUserAccumulators != null
                         ? archivedUserAccumulators
                         : new StringifiedAccumulatorResult[0],
@@ -155,9 +158,15 @@ public class ArchivedExecutionGraphBuilder {
                         ? archivedExecutionConfig
                         : new ArchivedExecutionConfigBuilder().build(),
                 isStoppable,
-                null,
+                persistedIntermediateDataSetDescriptors, null,
                 null,
                 "stateBackendName",
                 "checkpointStorageName");
+    }
+
+    public void setPersistedIntermediateDataSetDescriptors(
+            Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor>
+                    persistedIntermediateDataSetDescriptors) {
+        this.persistedIntermediateDataSetDescriptors = persistedIntermediateDataSetDescriptors;
     }
 }

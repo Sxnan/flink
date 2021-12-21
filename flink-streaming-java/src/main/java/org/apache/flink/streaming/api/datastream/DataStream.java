@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -50,6 +51,7 @@ import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
@@ -77,6 +79,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFacto
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
@@ -1368,5 +1371,23 @@ public class DataStream<T> {
     @Internal
     public Transformation<T> getTransformation() {
         return transformation;
+    }
+
+    /**
+     * Cache the intermediate result of the transformation in Batch mode. This method has no affect
+     * if the job is running in Stream mode. Only physical transformation can be cached. The cache
+     * is generated lazily at the first time the intermediate result is computed.The cache will
+     * be clear when the {@link StreamExecutionEnvironment} close.
+     *
+     * @return A CachedDataStream that can be use in later job to consume the cached intermediate
+     * result
+     */
+    public CachedDataStream<T> cache() {
+        if (!(this.transformation instanceof PhysicalTransformation)) {
+            throw new IllegalStateException("Cache cannot be called in a non physical transformation");
+        }
+
+        return new CachedDataStream<T>(this.environment,
+                (PhysicalTransformation<T>) this.transformation);
     }
 }

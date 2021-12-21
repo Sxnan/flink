@@ -24,6 +24,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.PersistedIntermediateDataSetDescriptor;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -71,6 +72,7 @@ import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -96,6 +98,9 @@ import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.transformations.CacheTransformation;
+import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -117,12 +122,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -174,6 +182,12 @@ public class StreamExecutionEnvironment {
     protected final CheckpointConfig checkpointCfg = new CheckpointConfig();
 
     protected final List<Transformation<?>> transformations = new ArrayList<>();
+
+//    private final Set<PhysicalTransformation<?>> cachedTransformations = new HashSet<>();
+
+//    private final Set<PersistedIntermediateDataSetDescriptor> cachedIntermediateDataSets = new HashSet<>();
+
+    private final Map<AbstractID, CacheTransformation<?>> cachedTransformation = new HashMap<>();
 
     private long bufferTimeout = ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis();
 
@@ -2096,6 +2110,19 @@ public class StreamExecutionEnvironment {
 
         try {
             JobClient jobClient = jobClientFuture.get();
+            jobClient.getJobExecutionResult()
+                    .whenComplete((jobExecutionResult, throwable) -> {
+                        if (throwable != null) {
+                            return;
+                        }
+                        for (PersistedIntermediateDataSetDescriptor ids : jobExecutionResult
+                                .getCachedIntermediateDataSets()) {
+                            final CacheTransformation<?> cacheTransformation = cachedTransformation.get(
+                                    ids.getIntermediateDataSetId());
+                            Preconditions.checkNotNull(cacheTransformation);
+                            cacheTransformation.setPersistedIntermediateDataSetDescriptor(ids);
+                        }
+                    });
             jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
             return jobClient;
         } catch (ExecutionException executionException) {
@@ -2519,5 +2546,11 @@ public class StreamExecutionEnvironment {
     @Internal
     public List<Transformation<?>> getTransformations() {
         return transformations;
+    }
+
+    public <T> void addCache(
+            IntermediateDataSetID intermediateDataSetID,
+            CacheTransformation<T> t) {
+        cachedTransformation.put(intermediateDataSetID, t);
     }
 }

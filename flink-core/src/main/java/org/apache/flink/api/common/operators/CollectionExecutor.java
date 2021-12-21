@@ -118,7 +118,7 @@ public class CollectionExecutor {
         long endTime = System.currentTimeMillis();
         Map<String, OptionalFailure<Object>> accumulatorResults =
                 AccumulatorHelper.toResultMap(accumulators);
-        return new JobExecutionResult(null, endTime - startTime, accumulatorResults);
+        return new JobExecutionResult(null, endTime - startTime, accumulatorResults, null);
     }
 
     private void initCache(Set<Map.Entry<String, DistributedCache.DistributedCacheEntry>> files) {

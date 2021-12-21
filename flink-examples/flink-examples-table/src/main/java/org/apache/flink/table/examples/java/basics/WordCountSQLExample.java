@@ -28,21 +28,17 @@ public final class WordCountSQLExample {
 
         // set up the Table API
         final EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().inBatchMode().build();
+                EnvironmentSettings.newInstance().build();
         final TableEnvironment tableEnv = TableEnvironment.create(settings);
 
+        tableEnv.executeSql("CREATE TABLE source (id INT, proc_time AS PROCTIME())"
+                + "WITH"
+                + "('connector'='datagen', 'fields.id.kind'='sequence', 'fields.id.start'='0', 'fields.id.end'='100', 'rows-per-second'='1')");
+
         // execute a Flink SQL job and print the result locally
-        tableEnv.executeSql(
-                        // define the aggregation
-                        "SELECT word, SUM(frequency) AS `count`\n"
-                                // read from an artificial fixed-size table with rows and columns
-                                + "FROM (\n"
-                                + "  VALUES ('Hello', 1), ('Ciao', 1), ('Hello', 2)\n"
-                                + ")\n"
-                                // name the table and its columns
-                                + "AS WordTable(word, frequency)\n"
-                                // group for aggregation
-                                + "GROUP BY word")
+        tableEnv.executeSql("CREATE TEMPORARY VIEW id_view AS SELECT id, UNIX_TIMESTAMP() as ts FROM source");
+
+        tableEnv.executeSql("SELECT id, ts FROM id_view WHERE ts % 2 <> 0")
                 .print();
     }
 }

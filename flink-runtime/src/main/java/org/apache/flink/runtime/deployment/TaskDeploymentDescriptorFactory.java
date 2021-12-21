@@ -20,12 +20,14 @@ package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.PersistedIntermediateDataSetDescriptor;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ClusterPartitionDescriptorImpl;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -33,6 +35,7 @@ import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.InternalExecutionGraphAccessor;
 import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.PersistedIntermediateDataSetDescriptorImpl;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -73,6 +76,7 @@ public class TaskDeploymentDescriptorFactory {
     private final Function<IntermediateResultPartitionID, IntermediateResultPartition>
             resultPartitionRetriever;
     private final BlobWriter blobWriter;
+    private final PersistedIntermediateDataSetDescriptorImpl idsDescriptor;
 
     private TaskDeploymentDescriptorFactory(
             ExecutionAttemptID executionId,
@@ -85,7 +89,8 @@ public class TaskDeploymentDescriptorFactory {
             List<ConsumedPartitionGroup> consumedPartitionGroups,
             Function<IntermediateResultPartitionID, IntermediateResultPartition>
                     resultPartitionRetriever,
-            BlobWriter blobWriter) {
+            BlobWriter blobWriter,
+            PersistedIntermediateDataSetDescriptor idsDescriptor) {
         this.executionId = executionId;
         this.attemptNumber = attemptNumber;
         this.serializedJobInformation = serializedJobInformation;
@@ -96,6 +101,7 @@ public class TaskDeploymentDescriptorFactory {
         this.consumedPartitionGroups = consumedPartitionGroups;
         this.resultPartitionRetriever = resultPartitionRetriever;
         this.blobWriter = blobWriter;
+        this.idsDescriptor = (PersistedIntermediateDataSetDescriptorImpl) idsDescriptor;
     }
 
     public TaskDeploymentDescriptor createDeploymentDescriptor(
@@ -142,6 +148,17 @@ public class TaskDeploymentDescriptorFactory {
                             consumedSubpartitionRange,
                             getConsumedPartitionShuffleDescriptors(
                                     consumedIntermediateResult, consumedPartitionGroup)));
+        }
+
+        if (idsDescriptor != null) {
+            final ShuffleDescriptor[] shuffleDescriptors =
+                    new ShuffleDescriptor[]{idsDescriptor.getShuffleDescriptors().get(subtaskIndex)};
+            inputGates.add(new InputGateDeploymentDescriptor(
+                    (IntermediateDataSetID) idsDescriptor.getIntermediateDataSetId(),
+                    ResultPartitionType.BLOCKING_PERSISTENT,
+                    0,
+                    shuffleDescriptors
+            ));
         }
 
         return inputGates;
@@ -253,7 +270,8 @@ public class TaskDeploymentDescriptorFactory {
                 executionVertex.getParallelSubtaskIndex(),
                 executionVertex.getAllConsumedPartitionGroups(),
                 internalExecutionGraphAccessor::getResultPartitionOrThrow,
-                internalExecutionGraphAccessor.getBlobWriter());
+                internalExecutionGraphAccessor.getBlobWriter(),
+                executionVertex.getJobVertex().getJobVertex().getIdsDescriptor());
     }
 
     private static MaybeOffloaded<JobInformation> getSerializedJobInformation(

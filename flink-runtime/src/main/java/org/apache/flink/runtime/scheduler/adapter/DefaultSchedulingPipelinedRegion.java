@@ -26,6 +26,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingPipelinedRegion;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,6 +42,8 @@ public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegi
     private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVertices;
 
     private Set<ConsumedPartitionGroup> blockingConsumedPartitionGroups;
+
+    private Set<ConsumedPartitionGroup> persistentConsumedPartitionGroups;
 
     private final Function<IntermediateResultPartitionID, DefaultResultPartition>
             resultPartitionRetriever;
@@ -93,12 +96,42 @@ public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegi
                 Collections.unmodifiableSet(consumedPartitionGroupSet);
     }
 
+    private void initializeAllPersistentConsumedPartitionGroups() {
+        final Set<ConsumedPartitionGroup> consumedPartitionGroupSet = new HashSet<>();
+        for (DefaultExecutionVertex executionVertex : executionVertices.values()) {
+            for (ConsumedPartitionGroup consumedPartitionGroup :
+                    executionVertex.getConsumedPartitionGroups()) {
+                SchedulingResultPartition consumedPartition =
+                        resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
+
+                checkState(
+                        consumedPartition.getConsumerVertexGroups().size() <= 1,
+                        "Currently there has to be exactly one consumer for each partition in real jobs.");
+
+                if (consumedPartition.getResultType().isPersistent()) {
+                    consumedPartitionGroupSet.add(consumedPartitionGroup);
+                }
+            }
+        }
+
+        this.persistentConsumedPartitionGroups =
+                Collections.unmodifiableSet(consumedPartitionGroupSet);
+    }
+
     @Override
     public Iterable<ConsumedPartitionGroup> getAllBlockingConsumedPartitionGroups() {
         if (blockingConsumedPartitionGroups == null) {
             initializeAllBlockingConsumedPartitionGroups();
         }
         return blockingConsumedPartitionGroups;
+    }
+
+    @Override
+    public Collection<ConsumedPartitionGroup> getAllPersistentConsumedPartitionGroups() {
+        if (persistentConsumedPartitionGroups == null) {
+            initializeAllPersistentConsumedPartitionGroups();
+        }
+        return persistentConsumedPartitionGroups;
     }
 
     @Override

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.PersistedIntermediateDataSetDescriptor;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
@@ -141,6 +142,8 @@ public class JobVertex implements java.io.Serializable {
      * JSON plan.
      */
     private String resultOptimizerProperties;
+
+    private PersistedIntermediateDataSetDescriptor idsDescriptor;
 
     // --------------------------------------------------------------------------------------------
 
@@ -573,5 +576,13 @@ public class JobVertex implements java.io.Serializable {
     @Override
     public String toString() {
         return this.name + " (" + this.invokableClassName + ')';
+    }
+
+    public PersistedIntermediateDataSetDescriptor getIdsDescriptor() {
+        return idsDescriptor;
+    }
+
+    public void setIdsDescriptor(PersistedIntermediateDataSetDescriptor idsDescriptor) {
+        this.idsDescriptor = idsDescriptor;
     }
 }

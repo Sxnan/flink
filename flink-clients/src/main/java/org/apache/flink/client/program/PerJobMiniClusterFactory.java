@@ -44,6 +44,7 @@ import java.util.function.Function;
 public final class PerJobMiniClusterFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger(PerJobMiniClusterFactory.class);
+    private static MiniCluster miniCluster = null;
 
     private final Configuration configuration;
     private final Function<? super MiniClusterConfiguration, ? extends MiniCluster>
@@ -71,8 +72,10 @@ public final class PerJobMiniClusterFactory {
             JobGraph jobGraph, ClassLoader userCodeClassloader) throws Exception {
         MiniClusterConfiguration miniClusterConfig =
                 getMiniClusterConfig(jobGraph.getMaximumParallelism());
-        MiniCluster miniCluster = miniClusterFactory.apply(miniClusterConfig);
-        miniCluster.start();
+        if (miniCluster == null) {
+            miniCluster = miniClusterFactory.apply(miniClusterConfig);
+            miniCluster.start();
+        }
 
         return miniCluster
                 .submitJob(jobGraph)
@@ -103,7 +106,7 @@ public final class PerJobMiniClusterFactory {
                                         miniCluster,
                                         userCodeClassloader,
                                         MiniClusterJobClient.JobFinalizationBehavior
-                                                .SHUTDOWN_CLUSTER))
+                                                .NOTHING))
                 .whenComplete(
                         (ignored, throwable) -> {
                             if (throwable != null) {

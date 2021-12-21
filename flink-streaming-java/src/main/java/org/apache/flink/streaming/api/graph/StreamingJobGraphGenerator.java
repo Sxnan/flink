@@ -36,6 +36,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphUtils;
@@ -62,6 +63,7 @@ import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
@@ -741,6 +743,11 @@ public class StreamingJobGraphGenerator {
             jobVertex = new JobVertex(chainedNames.get(streamNodeId), jobVertexId, operatorIDPairs);
         }
 
+        if (streamNode.getCacheIDSDescriptor() != null) {
+            // the node read from cache
+            jobVertex.setIdsDescriptor(streamNode.getCacheIDSDescriptor());
+        }
+
         for (OperatorCoordinator.Provider coordinatorProvider :
                 chainInfo.getCoordinatorProviders()) {
             try {
@@ -837,6 +844,12 @@ public class StreamingJobGraphGenerator {
                 }
             }
         }
+
+        if (vertex.getCacheIDSDescriptor() != null) {
+            config.setNumberOfNetworkInputs(1);
+            inputConfigs[0] = new StreamConfig.NetworkInputConfig(inputSerializers[0], 0);
+        }
+
         config.setInputs(inputConfigs);
 
         config.setTypeSerializerOut(vertex.getTypeSerializerOut());
@@ -984,18 +997,31 @@ public class StreamingJobGraphGenerator {
                         "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
         }
 
+        IntermediateDataSetID intermediateDataSetID;
+        final StreamNode source = streamGraph.getStreamNode(edge.getSourceId());
+        final StreamNode target = streamGraph.getStreamNode(edge.getTargetId());
+        if (resultPartitionType.isBlocking() && source.isShouldCache() &&
+                source.getIntermediateDataSetID() == target.getConsumeIntermediateDataSetID()) {
+            resultPartitionType = ResultPartitionType.BLOCKING_PERSISTENT;
+            intermediateDataSetID = source.getIntermediateDataSetID();
+        } else {
+            intermediateDataSetID = new IntermediateDataSetID();
+        }
+
         checkBufferTimeout(resultPartitionType, edge);
 
-        JobEdge jobEdge;
+        DistributionPattern distributionPattern;
         if (partitioner.isPointwise()) {
-            jobEdge =
-                    downStreamVertex.connectNewDataSetAsInput(
-                            headVertex, DistributionPattern.POINTWISE, resultPartitionType);
+            distributionPattern = DistributionPattern.POINTWISE;
         } else {
-            jobEdge =
-                    downStreamVertex.connectNewDataSetAsInput(
-                            headVertex, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+            distributionPattern = DistributionPattern.ALL_TO_ALL;
         }
+
+        JobEdge jobEdge =
+                downStreamVertex.connectDataSetAsInput(
+                        headVertex.createAndAddResultDataSet(intermediateDataSetID, resultPartitionType),
+                        distributionPattern
+                );
         // set strategy name so that web interface can show it.
         jobEdge.setShipStrategyName(partitioner.toString());
         jobEdge.setBroadcast(partitioner.isBroadcast());

@@ -23,6 +23,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.topology.PipelinedRegion;
 
+import java.util.Collection;
+
 /** Pipelined region on execution level, i.e., {@link ExecutionGraph} level. */
 public interface SchedulingPipelinedRegion
         extends PipelinedRegion<
@@ -36,4 +38,11 @@ public interface SchedulingPipelinedRegion
      * @return set of {@link ConsumedPartitionGroup}s
      */
     Iterable<ConsumedPartitionGroup> getAllBlockingConsumedPartitionGroups();
+
+    /**
+     * Get all distinct persistent {@link ConsumedPartitionGroup}s.
+     *
+     * @return set of {@link ConsumedPartitionGroup}s
+     */
+    Collection<ConsumedPartitionGroup> getAllPersistentConsumedPartitionGroups();
 }

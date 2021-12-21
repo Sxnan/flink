@@ -19,12 +19,14 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.PersistedIntermediateDataSetDescriptor;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -88,6 +90,11 @@ public class StreamNode {
     private String userHash;
 
     private final Map<Integer, StreamConfig.InputRequirement> inputRequirements = new HashMap<>();
+
+    private boolean shouldCache;
+    private IntermediateDataSetID intermediateDataSetID;
+    private IntermediateDataSetID consumeIntermediateDataSetID;
+    private PersistedIntermediateDataSetDescriptor cacheIDSDescriptor;
 
     @VisibleForTesting
     public StreamNode(
@@ -401,5 +408,37 @@ public class StreamNode {
     @Override
     public int hashCode() {
         return id;
+    }
+
+    public boolean isShouldCache() {
+        return shouldCache;
+    }
+
+    public void setShouldCache(boolean shouldCache) {
+        this.shouldCache = shouldCache;
+    }
+
+    public PersistedIntermediateDataSetDescriptor getCacheIDSDescriptor() {
+        return cacheIDSDescriptor;
+    }
+
+    public void setCacheIDSDescriptor(PersistedIntermediateDataSetDescriptor cacheIDSDescriptor) {
+        this.cacheIDSDescriptor = cacheIDSDescriptor;
+    }
+
+    public IntermediateDataSetID getIntermediateDataSetID() {
+        return intermediateDataSetID;
+    }
+
+    public void setIntermediateDataSetID(IntermediateDataSetID intermediateDataSetID) {
+        this.intermediateDataSetID = intermediateDataSetID;
+    }
+
+    public IntermediateDataSetID getConsumeIntermediateDataSetID() {
+        return consumeIntermediateDataSetID;
+    }
+
+    public void setConsumeIntermediateDataSetID(IntermediateDataSetID consumeIntermediateDataSetID) {
+        this.consumeIntermediateDataSetID = consumeIntermediateDataSetID;
     }
 }
