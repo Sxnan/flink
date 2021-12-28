@@ -99,7 +99,6 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
-import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.ExceptionUtils;
@@ -122,15 +121,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -187,7 +183,7 @@ public class StreamExecutionEnvironment {
 
 //    private final Set<PersistedIntermediateDataSetDescriptor> cachedIntermediateDataSets = new HashSet<>();
 
-    private final Map<AbstractID, CacheTransformation<?>> cachedTransformation = new HashMap<>();
+    private final Map<AbstractID, CacheTransformation<?>> cachedTransformations = new HashMap<>();
 
     private long bufferTimeout = ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis();
 
@@ -2117,7 +2113,8 @@ public class StreamExecutionEnvironment {
                         }
                         for (PersistedIntermediateDataSetDescriptor ids : jobExecutionResult
                                 .getCachedIntermediateDataSets()) {
-                            final CacheTransformation<?> cacheTransformation = cachedTransformation.get(
+                            final CacheTransformation<?> cacheTransformation = cachedTransformations
+                                    .get(
                                     ids.getIntermediateDataSetId());
                             Preconditions.checkNotNull(cacheTransformation);
                             cacheTransformation.setPersistedIntermediateDataSetDescriptor(ids);
@@ -2548,9 +2545,25 @@ public class StreamExecutionEnvironment {
         return transformations;
     }
 
+    @Internal
     public <T> void addCache(
             IntermediateDataSetID intermediateDataSetID,
             CacheTransformation<T> t) {
-        cachedTransformation.put(intermediateDataSetID, t);
+        cachedTransformations.put(intermediateDataSetID, t);
+    }
+
+    @Internal
+    public void invalidateCache(IntermediateDataSetID intermediateDataSetID) throws Exception {
+        final PipelineExecutorFactory executorFactory = executorServiceLoader.getExecutorFactory(
+                configuration);
+
+        final PipelineExecutor executor = executorFactory
+                .getExecutor(configuration);
+
+        executor.invalidateCache(intermediateDataSetID, configuration, userClassloader).get();
+
+        final CacheTransformation<?> invalidatedCacheTransformation =
+                cachedTransformations.remove(intermediateDataSetID);
+        invalidatedCacheTransformation.setPersistedIntermediateDataSetDescriptor(null);
     }
 }

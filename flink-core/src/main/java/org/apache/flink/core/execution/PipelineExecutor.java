@@ -21,6 +21,7 @@ package org.apache.flink.core.execution;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.AbstractID;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -47,4 +48,11 @@ public interface PipelineExecutor {
             final Configuration configuration,
             final ClassLoader userCodeClassloader)
             throws Exception;
+
+    default CompletableFuture<Void> invalidateCache(
+            final AbstractID intermediateDataSetID,
+            final Configuration configuration,
+            final ClassLoader userCodeClassloader) throws Exception {
+        throw new UnsupportedOperationException("Cannot invalidate cache");
+    }
 }

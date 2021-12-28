@@ -59,6 +59,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
@@ -1267,6 +1268,13 @@ public class MiniCluster implements AutoCloseableAsync {
         } catch (ClassNotFoundException | IOException e) {
             throw new IllegalStateException("Unable to clone the provided JobGraph.", e);
         }
+    }
+
+    public CompletableFuture<Void> invalidateCache(IntermediateDataSetID intermediateDataSetID) {
+        return resourceManagerGatewayRetriever.getFuture()
+                .thenApply(resourceManagerGateway ->
+                        resourceManagerGateway.releaseClusterPartitions(intermediateDataSetID))
+                .thenCompose(Function.identity());
     }
 
     /** Internal factory for {@link RpcService}. */

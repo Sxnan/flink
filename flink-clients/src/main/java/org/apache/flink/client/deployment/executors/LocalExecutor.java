@@ -28,9 +28,12 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.Preconditions;
 
 import java.net.MalformedURLException;
 import java.util.concurrent.CompletableFuture;
@@ -102,5 +105,22 @@ public class LocalExecutor implements PipelineExecutor {
         }
 
         return PipelineExecutorUtils.getJobGraph(pipeline, configuration);
+    }
+
+    @Override
+    public CompletableFuture<Void> invalidateCache(
+            AbstractID intermediateDataSetID,
+            Configuration configuration,
+            ClassLoader userCodeClassloader) throws Exception {
+
+        Preconditions.checkState(intermediateDataSetID instanceof IntermediateDataSetID);
+
+        Configuration effectiveConfig = new Configuration();
+        effectiveConfig.addAll(this.configuration);
+        effectiveConfig.addAll(configuration);
+
+
+        return PerJobMiniClusterFactory.createWithFactory(effectiveConfig, miniClusterFactory)
+                .invalidateCache((IntermediateDataSetID) intermediateDataSetID);
     }
 }

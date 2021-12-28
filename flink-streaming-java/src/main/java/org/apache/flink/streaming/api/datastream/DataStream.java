@@ -1377,7 +1377,8 @@ public class DataStream<T> {
      * Cache the intermediate result of the transformation in Batch mode. This method has no affect
      * if the job is running in Stream mode. Only physical transformation can be cached. The cache
      * is generated lazily at the first time the intermediate result is computed.The cache will
-     * be clear when the {@link StreamExecutionEnvironment} close.
+     * be clear when {@link CachedDataStream#invalidateCache()} called or the
+     * {@link StreamExecutionEnvironment} close.
      *
      * @return A CachedDataStream that can be use in later job to consume the cached intermediate
      * result

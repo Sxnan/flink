@@ -6,6 +6,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
+import org.apache.flink.streaming.api.datastream.CachedDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.SplittableIterator;
@@ -17,7 +18,7 @@ public class MyWordCount {
     public static void main(String[] args) throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-//        env.setParallelism(2);
+        env.setParallelism(2);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
 
@@ -49,13 +50,13 @@ public class MyWordCount {
                 return strings.iterator().next();
             }
         }, String.class);
-        source = source.cache();
 
-        final DataStream<Tuple2<String, Integer>> map = source.map(
+        CachedDataStream<String> cachedSource = source.cache();
+
+        final DataStream<Tuple2<String, Integer>> cachedMap = cachedSource.map(
                 w -> new Tuple2<>(w, 1),
                 TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class)).name("Map to tuple").cache();
-        map.print();
-        map.keyBy(value -> value.f0)
+        cachedMap.keyBy(value -> value.f0)
                 .reduce((v1, v2) -> new Tuple2<>(v1.f0, v1.f1 + v2.f1))
                 .print();
 
@@ -63,8 +64,8 @@ public class MyWordCount {
 
         env.execute();
 
-        map.print();
-        map
+        cachedSource.print();
+        cachedMap
             .keyBy(value -> value.f1)
             .reduce((v1, v2) -> new Tuple2<>(v1.f0 + v2.f0, v1.f1))
             .print();

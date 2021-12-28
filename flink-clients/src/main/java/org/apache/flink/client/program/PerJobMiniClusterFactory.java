@@ -23,12 +23,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.MiniClusterJobClient;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.util.MathUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
@@ -157,5 +159,10 @@ public final class PerJobMiniClusterFactory {
                                 LOG.warn("Shutdown of MiniCluster failed.", throwable);
                             }
                         });
+    }
+
+    public CompletableFuture<Void> invalidateCache(IntermediateDataSetID intermediateDataSetID) {
+        Preconditions.checkNotNull(miniCluster);
+        return miniCluster.invalidateCache(intermediateDataSetID);
     }
 }
