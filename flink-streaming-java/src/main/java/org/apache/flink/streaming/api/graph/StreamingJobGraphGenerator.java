@@ -1018,10 +1018,9 @@ public class StreamingJobGraphGenerator {
         }
 
         JobEdge jobEdge =
-                downStreamVertex.connectDataSetAsInput(
-                        headVertex.createAndAddResultDataSet(intermediateDataSetID, resultPartitionType),
-                        distributionPattern
-                );
+                downStreamVertex.connectNewDataSetAsInput(
+                        headVertex, distributionPattern,
+                        resultPartitionType, intermediateDataSetID);
         // set strategy name so that web interface can show it.
         jobEdge.setShipStrategyName(partitioner.toString());
         jobEdge.setBroadcast(partitioner.isBroadcast());

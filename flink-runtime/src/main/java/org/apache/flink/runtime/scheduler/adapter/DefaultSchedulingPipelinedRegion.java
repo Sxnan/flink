@@ -104,10 +104,6 @@ public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegi
                 SchedulingResultPartition consumedPartition =
                         resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
 
-                checkState(
-                        consumedPartition.getConsumerVertexGroups().size() <= 1,
-                        "Currently there has to be exactly one consumer for each partition in real jobs.");
-
                 if (consumedPartition.getResultType().isPersistent()) {
                     consumedPartitionGroupSet.add(consumedPartitionGroup);
                 }
