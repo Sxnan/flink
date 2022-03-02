@@ -179,7 +179,8 @@ public interface AccessExecutionGraph extends JobStatusProvider {
      */
     Optional<String> getCheckpointStorageName();
 
-    default Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> getPersistedIntermediateResult() {
+    default Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor>
+            getPersistedIntermediateResult() {
         return Collections.emptyMap();
     }
 }

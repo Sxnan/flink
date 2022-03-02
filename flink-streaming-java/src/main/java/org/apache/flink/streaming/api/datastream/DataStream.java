@@ -21,7 +21,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -51,7 +50,6 @@ import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
@@ -1376,19 +1374,20 @@ public class DataStream<T> {
     /**
      * Cache the intermediate result of the transformation in Batch mode. This method has no affect
      * if the job is running in Stream mode. Only physical transformation can be cached. The cache
-     * is generated lazily at the first time the intermediate result is computed.The cache will
-     * be clear when {@link CachedDataStream#invalidateCache()} called or the
-     * {@link StreamExecutionEnvironment} close.
+     * is generated lazily at the first time the intermediate result is computed.The cache will be
+     * clear when {@link CachedDataStream#invalidateCache()} called or the {@link
+     * StreamExecutionEnvironment} close.
      *
      * @return A CachedDataStream that can be use in later job to consume the cached intermediate
-     * result
+     *     result
      */
     public CachedDataStream<T> cache() {
         if (!(this.transformation instanceof PhysicalTransformation)) {
-            throw new IllegalStateException("Cache cannot be called in a non physical transformation");
+            throw new IllegalStateException(
+                    "Cache cannot be called in a non physical transformation");
         }
 
-        return new CachedDataStream<T>(this.environment,
-                (PhysicalTransformation<T>) this.transformation);
+        return new CachedDataStream<T>(
+                this.environment, (PhysicalTransformation<T>) this.transformation);
     }
 }

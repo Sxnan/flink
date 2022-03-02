@@ -101,13 +101,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -142,8 +140,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     private final CoordinatorStore coordinatorStore = new CoordinatorStoreImpl();
 
     /** Executor that runs tasks in the job manager's main thread. */
-    @Nonnull
-    private ComponentMainThreadExecutor jobMasterMainThreadExecutor;
+    @Nonnull private ComponentMainThreadExecutor jobMasterMainThreadExecutor;
 
     /** {@code true} if all source tasks are stoppable. */
     private boolean isStoppable = true;
@@ -195,8 +192,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private DefaultExecutionTopology executionTopology;
 
-    @Nullable
-    private InternalFailuresListener internalTaskFailuresListener;
+    @Nullable private InternalFailuresListener internalTaskFailuresListener;
 
     /** Counts all restarts. Used by other Gauges/Meters and does not register to metric group. */
     private final Counter numberOfRestartsCounter = new SimpleCounter();
@@ -239,8 +235,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     private final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker;
 
     /** Future for an ongoing or completed scheduling action. */
-    @Nullable
-    private CompletableFuture<Void> schedulingFuture;
+    @Nullable private CompletableFuture<Void> schedulingFuture;
 
     private final VertexAttemptNumberStore initialAttemptCounts;
 
@@ -249,16 +244,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     // ------ Fields that are relevant to the execution and need to be cleared before archiving
     // -------
 
-    @Nullable
-    private CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration;
+    @Nullable private CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration;
 
     /** The coordinator for checkpoints, if snapshot checkpoints are enabled. */
-    @Nullable
-    private CheckpointCoordinator checkpointCoordinator;
+    @Nullable private CheckpointCoordinator checkpointCoordinator;
 
     /** TODO, replace it with main thread executor. */
-    @Nullable
-    private ScheduledExecutorService checkpointCoordinatorTimer;
+    @Nullable private ScheduledExecutorService checkpointCoordinatorTimer;
 
     /**
      * Checkpoint stats tracker separate from the coordinator in order to be available after
@@ -267,11 +259,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     private CheckpointStatsTracker checkpointStatsTracker;
 
     // ------ Fields that are only relevant for archived execution graphs ------------
-    @Nullable
-    private String stateBackendName;
+    @Nullable private String stateBackendName;
 
-    @Nullable
-    private String checkpointStorageName;
+    @Nullable private String checkpointStorageName;
 
     private String jsonPlan;
 
@@ -393,7 +383,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public TaskDeploymentDescriptorFactory.PartitionLocationConstraint
-    getPartitionLocationConstraint() {
+            getPartitionLocationConstraint() {
         return partitionLocationConstraint;
     }
 
@@ -537,7 +527,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     private Collection<OperatorCoordinatorCheckpointContext>
-    buildOpCoordinatorCheckpointContexts() {
+            buildOpCoordinatorCheckpointContexts() {
         final ArrayList<OperatorCoordinatorCheckpointContext> contexts = new ArrayList<>();
         for (final ExecutionJobVertex vertex : verticesInCreationOrder) {
             contexts.addAll(vertex.getOperatorCoordinators());
@@ -875,9 +865,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 throw new JobException(
                         String.format(
                                 "Encountered two intermediate data set with ID %s : previous=[%s] / new=[%s]",
-                                res.getId(),
-                                    res,
-                                    previousDataSet));
+                                res.getId(), res, previousDataSet));
             }
         }
 
@@ -1033,7 +1021,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         final Execution failedExecution = currentExecutions.get(failingAttempt);
         if (failedExecution != null
                 && (failedExecution.getState() == ExecutionState.RUNNING
-                || failedExecution.getState() == ExecutionState.INITIALIZING)) {
+                        || failedExecution.getState() == ExecutionState.INITIALIZING)) {
             failGlobal(cause);
         } else {
             LOG.debug(
@@ -1408,9 +1396,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
      * <p>This method never throws an exception!
      *
      * @param state The task execution state from which to deserialize the accumulators.
-     *
      * @return The deserialized accumulators, of null, if there are no accumulators or an error
-     *         occurred.
+     *     occurred.
      */
     private Map<String, Accumulator<?, ?>> deserializeAccumulators(
             TaskExecutionStateTransition state) {
@@ -1604,28 +1591,31 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         return Optional.ofNullable(currentExecutions.get(attemptId));
     }
 
-
     /**
-     * Returns the mapping from intermediate result id to the ClusterPartitionDescriptor of its partitions
+     * Returns the mapping from intermediate result id to the ClusterPartitionDescriptor of its
+     * partitions
      *
-     * @return The mapping from intermediate result id to the ClusterPartitionDescriptor of its partitions
-     * 		   null, if the job has not yet finished
+     * @return The mapping from intermediate result id to the ClusterPartitionDescriptor of its
+     *     partitions null, if the job has not yet finished
      */
     @Override
-    public Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> getPersistedIntermediateResult() {
+    public Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor>
+            getPersistedIntermediateResult() {
         if (!JobStatus.FINISHED.equals(state)) {
             return Collections.emptyMap();
         }
 
         Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> intermediateResultInfos =
                 new HashMap<>();
-        intermediateResults.forEach(((intermediateDataSetID, intermediateResult) -> {
-            if (!intermediateResult.getResultType().isPersistent()) {
-                return;
-            }
-            intermediateResultInfos.put(intermediateDataSetID,
-                    getPersistedIntermediateResultDescriptor(intermediateResult));
-        }));
+        intermediateResults.forEach(
+                ((intermediateDataSetID, intermediateResult) -> {
+                    if (!intermediateResult.getResultType().isPersistent()) {
+                        return;
+                    }
+                    intermediateResultInfos.put(
+                            intermediateDataSetID,
+                            getPersistedIntermediateResultDescriptor(intermediateResult));
+                }));
 
         return intermediateResultInfos;
     }
@@ -1635,17 +1625,17 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         List<ShuffleDescriptor> shuffleDescriptorSet = new ArrayList<>();
         for (IntermediateResultPartition partition : intermediateResult.getPartitions()) {
-            final ShuffleDescriptor shuffleDescriptor = partition
-                    .getProducer()
-                    .getCurrentExecutionAttempt()
-                    .getResultPartitionDeploymentDescriptor(partition.getPartitionId())
-                    .map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
-                    .orElseThrow(IllegalStateException::new);
+            final ShuffleDescriptor shuffleDescriptor =
+                    partition
+                            .getProducer()
+                            .getCurrentExecutionAttempt()
+                            .getResultPartitionDeploymentDescriptor(partition.getPartitionId())
+                            .map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
+                            .orElseThrow(IllegalStateException::new);
             shuffleDescriptorSet.add(shuffleDescriptor);
-
         }
 
-        return new PersistedIntermediateDataSetDescriptorImpl(intermediateResult.getId(),
-                shuffleDescriptorSet);
+        return new PersistedIntermediateDataSetDescriptorImpl(
+                intermediateResult.getId(), shuffleDescriptorSet);
     }
 }

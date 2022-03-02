@@ -150,8 +150,8 @@ public class RegionPartitionGroupReleaseStrategy
         for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
             final ConsumerRegionGroupExecutionView consumerRegionGroup =
                     partitionGroupConsumerRegions.get(consumedPartitionGroup);
-            if (consumerRegionGroup.isFinished() &&
-                    !persistentPartitionGroups.contains(consumedPartitionGroup)) {
+            if (consumerRegionGroup.isFinished()
+                    && !persistentPartitionGroups.contains(consumedPartitionGroup)) {
                 // At present, there's only one ConsumerVertexGroup for each
                 // ConsumedPartitionGroup, so if a ConsumedPartitionGroup is fully consumed, all
                 // its partitions are releasable.

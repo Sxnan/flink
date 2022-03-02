@@ -438,7 +438,8 @@ public class StreamNode {
         return consumeIntermediateDataSetID;
     }
 
-    public void setConsumeIntermediateDataSetID(IntermediateDataSetID consumeIntermediateDataSetID) {
+    public void setConsumeIntermediateDataSetID(
+            IntermediateDataSetID consumeIntermediateDataSetID) {
         this.consumeIntermediateDataSetID = consumeIntermediateDataSetID;
     }
 }

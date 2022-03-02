@@ -69,7 +69,9 @@ public class JobResult implements Serializable {
 
     /** Stores the cause of the job failure, or {@code null} if the job finished successfully. */
     @Nullable private final SerializedThrowable serializedThrowable;
-    private final Set<PersistedIntermediateDataSetDescriptor> persistedIntermediateDataSetDescriptors;
+
+    private final Set<PersistedIntermediateDataSetDescriptor>
+            persistedIntermediateDataSetDescriptors;
 
     private JobResult(
             final JobID jobId,
@@ -208,7 +210,8 @@ public class JobResult implements Serializable {
             return this;
         }
 
-        public Builder persistedIntermediateDataSets(final Set<PersistedIntermediateDataSetDescriptor> pids) {
+        public Builder persistedIntermediateDataSets(
+                final Set<PersistedIntermediateDataSetDescriptor> pids) {
             this.persistedIntermediateDataSetDescriptors = pids;
             return this;
         }
@@ -259,11 +262,8 @@ public class JobResult implements Serializable {
         builder.netRuntime(guardedNetRuntime);
         builder.accumulatorResults(accessExecutionGraph.getAccumulatorsSerialized());
         final Collection<PersistedIntermediateDataSetDescriptor> intermediateDataSetDescriptors =
-                accessExecutionGraph
-                .getPersistedIntermediateResult()
-                .values();
+                accessExecutionGraph.getPersistedIntermediateResult().values();
         builder.persistedIntermediateDataSets(new HashSet<>(intermediateDataSetDescriptors));
-
 
         if (jobStatus == JobStatus.FAILED) {
             final ErrorInfo errorInfo = accessExecutionGraph.getFailureInfo();

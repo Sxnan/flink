@@ -27,18 +27,18 @@ public final class WordCountSQLExample {
     public static void main(String[] args) throws Exception {
 
         // set up the Table API
-        final EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().build();
+        final EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
         final TableEnvironment tableEnv = TableEnvironment.create(settings);
 
-        tableEnv.executeSql("CREATE TABLE source (id INT, proc_time AS PROCTIME())"
-                + "WITH"
-                + "('connector'='datagen', 'fields.id.kind'='sequence', 'fields.id.start'='0', 'fields.id.end'='100', 'rows-per-second'='1')");
+        tableEnv.executeSql(
+                "CREATE TABLE source (id INT, proc_time AS PROCTIME())"
+                        + "WITH"
+                        + "('connector'='datagen', 'fields.id.kind'='sequence', 'fields.id.start'='0', 'fields.id.end'='100', 'rows-per-second'='1')");
 
         // execute a Flink SQL job and print the result locally
-        tableEnv.executeSql("CREATE TEMPORARY VIEW id_view AS SELECT id, UNIX_TIMESTAMP() as ts FROM source");
+        tableEnv.executeSql(
+                "CREATE TEMPORARY VIEW id_view AS SELECT id, UNIX_TIMESTAMP() as ts FROM source");
 
-        tableEnv.executeSql("SELECT id, ts FROM id_view WHERE ts % 2 <> 0")
-                .print();
+        tableEnv.executeSql("SELECT id, ts FROM id_view WHERE ts % 2 <> 0").print();
     }
 }

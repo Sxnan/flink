@@ -151,13 +151,15 @@ public class TaskDeploymentDescriptorFactory {
 
         if (idsDescriptor != null) {
             final ShuffleDescriptor[] shuffleDescriptors =
-                    new ShuffleDescriptor[]{idsDescriptor.getShuffleDescriptors().get(subtaskIndex)};
-            inputGates.add(new InputGateDeploymentDescriptor(
-                    (IntermediateDataSetID) idsDescriptor.getIntermediateDataSetId(),
-                    ResultPartitionType.BLOCKING_PERSISTENT,
-                    0,
-                    shuffleDescriptors
-            ));
+                    new ShuffleDescriptor[] {
+                        idsDescriptor.getShuffleDescriptors().get(subtaskIndex)
+                    };
+            inputGates.add(
+                    new InputGateDeploymentDescriptor(
+                            (IntermediateDataSetID) idsDescriptor.getIntermediateDataSetId(),
+                            ResultPartitionType.BLOCKING_PERSISTENT,
+                            0,
+                            shuffleDescriptors));
         }
 
         return inputGates;

@@ -179,9 +179,10 @@ public class StreamExecutionEnvironment {
 
     protected final List<Transformation<?>> transformations = new ArrayList<>();
 
-//    private final Set<PhysicalTransformation<?>> cachedTransformations = new HashSet<>();
+    //    private final Set<PhysicalTransformation<?>> cachedTransformations = new HashSet<>();
 
-//    private final Set<PersistedIntermediateDataSetDescriptor> cachedIntermediateDataSets = new HashSet<>();
+    //    private final Set<PersistedIntermediateDataSetDescriptor> cachedIntermediateDataSets = new
+    // HashSet<>();
 
     private final Map<AbstractID, CacheTransformation<?>> cachedTransformations = new HashMap<>();
 
@@ -2106,20 +2107,23 @@ public class StreamExecutionEnvironment {
 
         try {
             JobClient jobClient = jobClientFuture.get();
-            jobClient.getJobExecutionResult()
-                    .whenComplete((jobExecutionResult, throwable) -> {
-                        if (throwable != null) {
-                            return;
-                        }
-                        for (PersistedIntermediateDataSetDescriptor ids : jobExecutionResult
-                                .getCachedIntermediateDataSets()) {
-                            final CacheTransformation<?> cacheTransformation = cachedTransformations
-                                    .get(
-                                    ids.getIntermediateDataSetId());
-                            Preconditions.checkNotNull(cacheTransformation);
-                            cacheTransformation.setPersistedIntermediateDataSetDescriptor(ids);
-                        }
-                    });
+            jobClient
+                    .getJobExecutionResult()
+                    .whenComplete(
+                            (jobExecutionResult, throwable) -> {
+                                if (throwable != null) {
+                                    return;
+                                }
+                                for (PersistedIntermediateDataSetDescriptor ids :
+                                        jobExecutionResult.getCachedIntermediateDataSets()) {
+                                    final CacheTransformation<?> cacheTransformation =
+                                            cachedTransformations.get(
+                                                    ids.getIntermediateDataSetId());
+                                    Preconditions.checkNotNull(cacheTransformation);
+                                    cacheTransformation.setPersistedIntermediateDataSetDescriptor(
+                                            ids);
+                                }
+                            });
             jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
             return jobClient;
         } catch (ExecutionException executionException) {
@@ -2547,18 +2551,16 @@ public class StreamExecutionEnvironment {
 
     @Internal
     public <T> void addCache(
-            IntermediateDataSetID intermediateDataSetID,
-            CacheTransformation<T> t) {
+            IntermediateDataSetID intermediateDataSetID, CacheTransformation<T> t) {
         cachedTransformations.put(intermediateDataSetID, t);
     }
 
     @Internal
     public void invalidateCache(IntermediateDataSetID intermediateDataSetID) throws Exception {
-        final PipelineExecutorFactory executorFactory = executorServiceLoader.getExecutorFactory(
-                configuration);
+        final PipelineExecutorFactory executorFactory =
+                executorServiceLoader.getExecutorFactory(configuration);
 
-        final PipelineExecutor executor = executorFactory
-                .getExecutor(configuration);
+        final PipelineExecutor executor = executorFactory.getExecutor(configuration);
 
         executor.invalidateCache(intermediateDataSetID, configuration, userClassloader).get();
 

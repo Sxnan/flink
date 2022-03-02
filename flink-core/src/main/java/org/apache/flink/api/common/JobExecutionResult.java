@@ -44,7 +44,21 @@ public class JobExecutionResult extends JobSubmissionResult {
 
     /**
      * Creates a new JobExecutionResult.
-     *  @param jobID The job's ID.
+     *
+     * @param jobID The job's ID.
+     * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer)
+     *     in milliseconds
+     * @param accumulators A map of all accumulators produced by the job.
+     */
+    public JobExecutionResult(
+            JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators) {
+        this(jobID, netRuntime, accumulators, null);
+    }
+
+    /**
+     * Creates a new JobExecutionResult.
+     *
+     * @param jobID The job's ID.
      * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer)
      *     in milliseconds
      * @param accumulators A map of all accumulators produced by the job.

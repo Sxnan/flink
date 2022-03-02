@@ -111,14 +111,14 @@ public class LocalExecutor implements PipelineExecutor {
     public CompletableFuture<Void> invalidateCache(
             AbstractID intermediateDataSetID,
             Configuration configuration,
-            ClassLoader userCodeClassloader) throws Exception {
+            ClassLoader userCodeClassloader)
+            throws Exception {
 
         Preconditions.checkState(intermediateDataSetID instanceof IntermediateDataSetID);
 
         Configuration effectiveConfig = new Configuration();
         effectiveConfig.addAll(this.configuration);
         effectiveConfig.addAll(configuration);
-
 
         return PerJobMiniClusterFactory.createWithFactory(effectiveConfig, miniClusterFactory)
                 .invalidateCache((IntermediateDataSetID) intermediateDataSetID);

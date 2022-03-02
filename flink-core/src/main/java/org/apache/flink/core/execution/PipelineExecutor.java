@@ -52,7 +52,8 @@ public interface PipelineExecutor {
     default CompletableFuture<Void> invalidateCache(
             final AbstractID intermediateDataSetID,
             final Configuration configuration,
-            final ClassLoader userCodeClassloader) throws Exception {
+            final ClassLoader userCodeClassloader)
+            throws Exception {
         throw new UnsupportedOperationException("Cannot invalidate cache");
     }
 }

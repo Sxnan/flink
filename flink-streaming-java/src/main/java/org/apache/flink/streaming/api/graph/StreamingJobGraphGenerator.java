@@ -63,7 +63,6 @@ import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
@@ -1000,8 +999,9 @@ public class StreamingJobGraphGenerator {
         IntermediateDataSetID intermediateDataSetID;
         final StreamNode source = streamGraph.getStreamNode(edge.getSourceId());
         final StreamNode target = streamGraph.getStreamNode(edge.getTargetId());
-        if (resultPartitionType.isBlocking() && source.isShouldCache() &&
-                source.getIntermediateDataSetID() == target.getConsumeIntermediateDataSetID()) {
+        if (resultPartitionType.isBlocking()
+                && source.isShouldCache()
+                && source.getIntermediateDataSetID() == target.getConsumeIntermediateDataSetID()) {
             resultPartitionType = ResultPartitionType.BLOCKING_PERSISTENT;
             intermediateDataSetID = source.getIntermediateDataSetID();
         } else {

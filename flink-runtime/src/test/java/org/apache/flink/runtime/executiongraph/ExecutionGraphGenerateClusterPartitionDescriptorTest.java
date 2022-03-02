@@ -55,87 +55,89 @@ public class ExecutionGraphGenerateClusterPartitionDescriptorTest extends TestLo
         final JobVertex operatorVertex = ExecutionGraphTestUtils.createNoOpVertex("noop", 1);
         final JobVertex sinkVertex = ExecutionGraphTestUtils.createNoOpVertex("sink", 1);
 
-        operatorVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.POINTWISE,
-                ResultPartitionType.BLOCKING);
-        sinkVertex.connectNewDataSetAsInput(operatorVertex, DistributionPattern.POINTWISE,
+        operatorVertex.connectNewDataSetAsInput(
+                sourceVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        sinkVertex.connectNewDataSetAsInput(
+                operatorVertex,
+                DistributionPattern.POINTWISE,
                 ResultPartitionType.BLOCKING_PERSISTENT);
 
-        final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(
-                sourceVertex,
-                operatorVertex,
-                sinkVertex);
-        final DefaultScheduler scheduler = SchedulerTestingUtils
-                .newSchedulerBuilder(jobGraph, mainThreadExecutor)
-                .setExecutionSlotAllocatorFactory(
-                        SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
-                                TestingPhysicalSlotProvider.create(
-                                        (ignored) ->
-                                                CompletableFuture.completedFuture(
-                                                        TestingPhysicalSlot.builder()
-                                                                .build()))))
-                .build();
+        final JobGraph jobGraph =
+                JobGraphTestUtils.batchJobGraph(sourceVertex, operatorVertex, sinkVertex);
+        final DefaultScheduler scheduler =
+                SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        TestingPhysicalSlotProvider.create(
+                                                (ignored) ->
+                                                        CompletableFuture.completedFuture(
+                                                                TestingPhysicalSlot.builder()
+                                                                        .build()))))
+                        .build();
 
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
         scheduler.startScheduling();
 
+        executionGraph
+                .getAllExecutionVertices()
+                .forEach(
+                        executionVertex -> {
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionStateTransition(
+                                            new TaskExecutionState(
+                                                    executionVertex
+                                                            .getCurrentExecutionAttempt()
+                                                            .getAttemptId(),
+                                                    ExecutionState.FINISHED)));
+                        });
 
-        executionGraph.getAllExecutionVertices()
-                .forEach(executionVertex -> {
-                    scheduler.updateTaskExecutionState(new TaskExecutionStateTransition(
-                            new TaskExecutionState(executionVertex
-                                    .getCurrentExecutionAttempt()
-                                    .getAttemptId(), ExecutionState.FINISHED)
-                    ));
-                });
-
-        final Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> persistedIntermediateResult = executionGraph
-                .getPersistedIntermediateResult();
-
-
-
+        final Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor>
+                persistedIntermediateResult = executionGraph.getPersistedIntermediateResult();
     }
 
-//    @Test
-//    public void testGenerateClusterPartitionDescriptorBeforeFinishReturnNull() throws Exception {
-//        final JobVertex sourceVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
-//        final JobVertex operatorVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
-//        final JobVertex sinkVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
-//
-//        operatorVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.POINTWISE,
-//                ResultPartitionType.BLOCKING_PERSISTENT);
-//        sinkVertex.connectNewDataSetAsInput(operatorVertex, DistributionPattern.POINTWISE,
-//                ResultPartitionType.BLOCKING_PERSISTENT);
-//
-//        final ExecutionGraph executionGraph =
-//                createExecutionGraph(sourceVertex, operatorVertex, sinkVertex);
-//
-//        assertNull(executionGraph.getPersistedIntermediateResult());
-//    }
+    //    @Test
+    //    public void testGenerateClusterPartitionDescriptorBeforeFinishReturnNull() throws
+    // Exception {
+    //        final JobVertex sourceVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
+    //        final JobVertex operatorVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
+    //        final JobVertex sinkVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
+    //
+    //        operatorVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.POINTWISE,
+    //                ResultPartitionType.BLOCKING_PERSISTENT);
+    //        sinkVertex.connectNewDataSetAsInput(operatorVertex, DistributionPattern.POINTWISE,
+    //                ResultPartitionType.BLOCKING_PERSISTENT);
+    //
+    //        final ExecutionGraph executionGraph =
+    //                createExecutionGraph(sourceVertex, operatorVertex, sinkVertex);
+    //
+    //        assertNull(executionGraph.getPersistedIntermediateResult());
+    //    }
 
-//    private ExecutionGraph createExecutionGraph(final JobVertex... vertices) throws Exception {
-//        DefaultExecutionGraphBuilder.buildGraph()
-//        final ExecutionGraph executionGraph = DefaultExecutionGraphBuilder.buildGraph(
-//                new JobGraph(new JobID(), "test job", vertices),
-//                new Configuration(),
-//                scheduledExecutorService,
-//                mainThreadExecutor.getMainThreadExecutor(),
-//                new TestingSlotProvider(ignored -> CompletableFuture.completedFuture(
-//                        new TestingLogicalSlotBuilder().createTestingLogicalSlot())),
-//                ExecutionGraphPartitionReleaseTest.class.getClassLoader(),
-//                new StandaloneCheckpointRecoveryFactory(),
-//                AkkaUtils.getDefaultTimeout(),
-//                new NoRestartStrategy(),
-//                new UnregisteredMetricsGroup(),
-//                VoidBlobWriter.getInstance(),
-//                AkkaUtils.getDefaultTimeout(),
-//                log,
-//                NettyShuffleMaster.INSTANCE,
-//                NoOpJobMasterPartitionTracker.INSTANCE,
-//                System.currentTimeMillis());
-//
-//        executionGraph.start(mainThreadExecutor.getMainThreadExecutor());
-//        mainThreadExecutor.execute(executionGraph::scheduleForExecution);
-//
-//        return executionGraph;
-//    }
+    //    private ExecutionGraph createExecutionGraph(final JobVertex... vertices) throws Exception
+    // {
+    //        DefaultExecutionGraphBuilder.buildGraph()
+    //        final ExecutionGraph executionGraph = DefaultExecutionGraphBuilder.buildGraph(
+    //                new JobGraph(new JobID(), "test job", vertices),
+    //                new Configuration(),
+    //                scheduledExecutorService,
+    //                mainThreadExecutor.getMainThreadExecutor(),
+    //                new TestingSlotProvider(ignored -> CompletableFuture.completedFuture(
+    //                        new TestingLogicalSlotBuilder().createTestingLogicalSlot())),
+    //                ExecutionGraphPartitionReleaseTest.class.getClassLoader(),
+    //                new StandaloneCheckpointRecoveryFactory(),
+    //                AkkaUtils.getDefaultTimeout(),
+    //                new NoRestartStrategy(),
+    //                new UnregisteredMetricsGroup(),
+    //                VoidBlobWriter.getInstance(),
+    //                AkkaUtils.getDefaultTimeout(),
+    //                log,
+    //                NettyShuffleMaster.INSTANCE,
+    //                NoOpJobMasterPartitionTracker.INSTANCE,
+    //                System.currentTimeMillis());
+    //
+    //        executionGraph.start(mainThreadExecutor.getMainThreadExecutor());
+    //        mainThreadExecutor.execute(executionGraph::scheduleForExecution);
+    //
+    //        return executionGraph;
+    //    }
 }

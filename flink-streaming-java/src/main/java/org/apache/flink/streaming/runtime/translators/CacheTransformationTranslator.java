@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.api.common.PersistedIntermediateDataSetDescriptor;
@@ -19,7 +36,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-public class CacheTransformationTranslator<OUT, T extends CacheTransformation<OUT>> extends SimpleTransformationTranslator<OUT, T> {
+/**
+ * A {@link TransformationTranslator} for the {@link CacheTransformation}.
+ *
+ * @param <OUT> The type of the output elements of the transformation being translated.
+ * @param <T> The type of transformation being translated.
+ */
+public class CacheTransformationTranslator<OUT, T extends CacheTransformation<OUT>>
+        extends SimpleTransformationTranslator<OUT, T> {
 
     @Override
     protected Collection<Integer> translateForBatchInternal(T transformation, Context context) {
@@ -27,31 +51,37 @@ public class CacheTransformationTranslator<OUT, T extends CacheTransformation<OU
         final StreamGraph streamGraph = context.getStreamGraph();
         if (transformation.getPersistedIntermediateDataSetDescriptor() == null) {
             final List<Transformation<?>> inputs = transformation.getInputs();
-            Preconditions.checkState(inputs.size() == 1,
-                    "There could be only one transformation input to cache");
+            Preconditions.checkState(
+                    inputs.size() == 1, "There could be only one transformation input to cache");
             Transformation<?> input = inputs.get(0);
             final Collection<Integer> cachedNodeIds = context.getStreamNodeIds(input);
 
-            Preconditions.checkState(cachedNodeIds.size() == 1,
+            Preconditions.checkState(
+                    cachedNodeIds.size() == 1,
                     "We expect only one stream node for the input transform");
 
             final Integer cacheNodeId = cachedNodeIds.iterator().next();
 
-            StreamNode cachedStreamNode =
-                    streamGraph.getStreamNode(cacheNodeId);
+            StreamNode cachedStreamNode = streamGraph.getStreamNode(cacheNodeId);
 
             // create cache
             cachedStreamNode.setShouldCache(true);
             cachedStreamNode.setIntermediateDataSetID(transformation.getIntermediateDataSetID());
 
-            final SimpleOperatorFactory<OUT> operatorFactory = SimpleOperatorFactory.of(new NoOpStreamOperator<>());
+            final SimpleOperatorFactory<OUT> operatorFactory =
+                    SimpleOperatorFactory.of(new NoOpStreamOperator<>());
             operatorFactory.setChainingStrategy(ChainingStrategy.HEAD);
-            streamGraph.addOperator(transformation.getId(),
+            streamGraph.addOperator(
+                    transformation.getId(),
                     context.getSlotSharingGroup(),
                     transformation.getCoLocationGroupKey(),
-                    operatorFactory, transformation.getInputs().get(0).getOutputType(), null,
+                    operatorFactory,
+                    transformation.getInputs().get(0).getOutputType(),
+                    null,
                     "Cache");
-            streamGraph.getStreamNode(transformation.getId()).setConsumeIntermediateDataSetID(transformation.getIntermediateDataSetID());
+            streamGraph
+                    .getStreamNode(transformation.getId())
+                    .setConsumeIntermediateDataSetID(transformation.getIntermediateDataSetID());
 
             streamGraph.setParallelism(transformation.getId(), input.getParallelism());
             streamGraph.setMaxParallelism(transformation.getId(), input.getMaxParallelism());
@@ -59,18 +89,26 @@ public class CacheTransformationTranslator<OUT, T extends CacheTransformation<OU
             return Collections.singletonList(cacheNodeId);
         } else {
             // reuse cache
-            final PersistedIntermediateDataSetDescriptor idsDescriptor = transformation
-                    .getPersistedIntermediateDataSetDescriptor();
-            final SimpleOperatorFactory<OUT> operatorFactory = SimpleOperatorFactory.of(new IdentityStreamOperator<>());
+            final PersistedIntermediateDataSetDescriptor idsDescriptor =
+                    transformation.getPersistedIntermediateDataSetDescriptor();
+            final SimpleOperatorFactory<OUT> operatorFactory =
+                    SimpleOperatorFactory.of(new IdentityStreamOperator<>());
             final TypeInformation<OUT> outputType =
                     transformation.getTransformationToCache().getOutputType();
-            streamGraph.addLegacySource(transformation.getId(),
+            streamGraph.addLegacySource(
+                    transformation.getId(),
                     context.getSlotSharingGroup(),
                     transformation.getCoLocationGroupKey(),
-                    operatorFactory, outputType, outputType,
+                    operatorFactory,
+                    outputType,
+                    outputType,
                     "CacheRead");
-            streamGraph.setParallelism(transformation.getId(), transformation.getTransformationToCache().getParallelism());
-            streamGraph.setMaxParallelism(transformation.getId(), transformation.getTransformationToCache().getMaxParallelism());
+            streamGraph.setParallelism(
+                    transformation.getId(),
+                    transformation.getTransformationToCache().getParallelism());
+            streamGraph.setMaxParallelism(
+                    transformation.getId(),
+                    transformation.getTransformationToCache().getMaxParallelism());
             final StreamNode streamNode = streamGraph.getStreamNode(transformation.getId());
             streamNode.setBufferTimeout(-1L);
             streamNode.setCacheIDSDescriptor(idsDescriptor);
@@ -82,17 +120,23 @@ public class CacheTransformationTranslator<OUT, T extends CacheTransformation<OU
     protected Collection<Integer> translateForStreamingInternal(T transformation, Context context) {
         // do nothing
         final List<Transformation<?>> inputs = transformation.getInputs();
-        Preconditions.checkState(inputs.size() == 1,
-                "There could be only one transformation input to cache");
+        Preconditions.checkState(
+                inputs.size() == 1, "There could be only one transformation input to cache");
         Transformation<?> input = inputs.get(0);
         final Collection<Integer> cachedNodeIds = context.getStreamNodeIds(input);
 
-        Preconditions.checkState(cachedNodeIds.size() == 1,
+        Preconditions.checkState(
+                cachedNodeIds.size() == 1,
                 "We expect only one stream node for the input transform");
         final Integer cachedNodeId = cachedNodeIds.iterator().next();
         return Collections.singletonList(cachedNodeId);
     }
 
+    /**
+     * A NoOpStreamOperator to drop all the records.
+     *
+     * @param <T> The output type of the operator.
+     */
     public static class NoOpStreamOperator<T> extends AbstractStreamOperator<T>
             implements OneInputStreamOperator<T, T> {
         private static final long serialVersionUID = 4517845269225218313L;
@@ -103,6 +147,11 @@ public class CacheTransformationTranslator<OUT, T extends CacheTransformation<OU
         }
     }
 
+    /**
+     * A IdentityStreamOperator to pass through all the records.
+     *
+     * @param <T> The output type of the operator.
+     */
     public static class IdentityStreamOperator<T> extends AbstractStreamOperator<T>
             implements OneInputStreamOperator<T, T> {
         private static final long serialVersionUID = 4517845269225218313L;
@@ -113,5 +162,4 @@ public class CacheTransformationTranslator<OUT, T extends CacheTransformation<OU
             // do nothing
         }
     }
-
 }

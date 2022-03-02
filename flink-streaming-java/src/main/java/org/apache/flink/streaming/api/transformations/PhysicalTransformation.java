@@ -47,5 +47,4 @@ public abstract class PhysicalTransformation<T> extends Transformation<T> {
 
     /** Sets the chaining strategy of this {@code Transformation}. */
     public abstract void setChainingStrategy(ChainingStrategy strategy);
-
 }

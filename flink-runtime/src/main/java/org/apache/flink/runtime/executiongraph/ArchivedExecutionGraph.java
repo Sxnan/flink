@@ -44,7 +44,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.Set;
 
 /** An archived execution graph represents a serializable form of an {@link ExecutionGraph}. */
 public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializable {
@@ -92,7 +91,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     private final ArchivedExecutionConfig archivedExecutionConfig;
     private final boolean isStoppable;
     private final Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
-    private final Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> persistedIntermediateDataSetDescriptors;
+    private final Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor>
+            persistedIntermediateDataSetDescriptors;
 
     @Nullable private final CheckpointCoordinatorConfiguration jobCheckpointingConfiguration;
 
@@ -115,7 +115,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators,
             ArchivedExecutionConfig executionConfig,
             boolean isStoppable,
-            Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> persistedIntermediateDataSetDescriptors,
+            Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor>
+                    persistedIntermediateDataSetDescriptors,
             @Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
             @Nullable CheckpointStatsSnapshot checkpointStatsSnapshot,
             @Nullable String stateBackendName,
@@ -392,7 +393,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     }
 
     @Override
-    public Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> getPersistedIntermediateResult() {
+    public Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor>
+            getPersistedIntermediateResult() {
         return persistedIntermediateDataSetDescriptors;
     }
 }

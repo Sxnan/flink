@@ -107,8 +107,7 @@ public final class PerJobMiniClusterFactory {
                                         result.getJobID(),
                                         miniCluster,
                                         userCodeClassloader,
-                                        MiniClusterJobClient.JobFinalizationBehavior
-                                                .NOTHING))
+                                        MiniClusterJobClient.JobFinalizationBehavior.NOTHING))
                 .whenComplete(
                         (ignored, throwable) -> {
                             if (throwable != null) {

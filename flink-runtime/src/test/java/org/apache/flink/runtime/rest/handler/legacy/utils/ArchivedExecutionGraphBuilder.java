@@ -55,7 +55,8 @@ public class ArchivedExecutionGraphBuilder {
     private ArchivedExecutionConfig archivedExecutionConfig;
     private boolean isStoppable;
     private Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
-    private Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor> persistedIntermediateDataSetDescriptors;
+    private Map<IntermediateDataSetID, PersistedIntermediateDataSetDescriptor>
+            persistedIntermediateDataSetDescriptors;
 
     public ArchivedExecutionGraphBuilder setJobID(JobID jobID) {
         this.jobID = jobID;
@@ -144,10 +145,10 @@ public class ArchivedExecutionGraphBuilder {
                 jsonPlan != null
                         ? jsonPlan
                         : "{\"jobid\":\""
-                        + jobID
-                        + "\", \"name\":\""
-                        + jobName
-                        + "\", \"nodes\":[]}",
+                                + jobID
+                                + "\", \"name\":\""
+                                + jobName
+                                + "\", \"nodes\":[]}",
                 archivedUserAccumulators != null
                         ? archivedUserAccumulators
                         : new StringifiedAccumulatorResult[0],
@@ -158,7 +159,8 @@ public class ArchivedExecutionGraphBuilder {
                         ? archivedExecutionConfig
                         : new ArchivedExecutionConfigBuilder().build(),
                 isStoppable,
-                persistedIntermediateDataSetDescriptors, null,
+                persistedIntermediateDataSetDescriptors,
+                null,
                 null,
                 "stateBackendName",
                 "checkpointStorageName");

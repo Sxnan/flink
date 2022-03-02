@@ -1271,9 +1271,12 @@ public class MiniCluster implements AutoCloseableAsync {
     }
 
     public CompletableFuture<Void> invalidateCache(IntermediateDataSetID intermediateDataSetID) {
-        return resourceManagerGatewayRetriever.getFuture()
-                .thenApply(resourceManagerGateway ->
-                        resourceManagerGateway.releaseClusterPartitions(intermediateDataSetID))
+        return resourceManagerGatewayRetriever
+                .getFuture()
+                .thenApply(
+                        resourceManagerGateway ->
+                                resourceManagerGateway.releaseClusterPartitions(
+                                        intermediateDataSetID))
                 .thenCompose(Function.identity());
     }
 
