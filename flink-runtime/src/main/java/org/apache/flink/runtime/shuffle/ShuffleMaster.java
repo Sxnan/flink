@@ -20,8 +20,10 @@ package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -83,6 +85,26 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> extends AutoCloseabl
             JobID jobID,
             PartitionDescriptor partitionDescriptor,
             ProducerDescriptor producerDescriptor);
+
+    /**
+     * Returns all the shuffle descriptors for the partitions in the intermediate data set with the
+     * given id.
+     *
+     * @param intermediateDataSetID The id of hte intermediate data set.
+     * @return all the shuffle descriptors for the partitions in the intermediate data set. Null if
+     *     not exist.
+     */
+    default Collection<T> getClusterPartitionShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID) {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Promote the given partition to cluster partition.
+     *
+     * @param shuffleDescriptor
+     */
+    default void promotePartition(ShuffleDescriptor shuffleDescriptor) {}
 
     /**
      * Release any external resources occupied by the given partition.

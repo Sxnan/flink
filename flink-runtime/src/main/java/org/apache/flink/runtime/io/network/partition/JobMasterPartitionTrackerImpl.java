@@ -158,6 +158,8 @@ public class JobMasterPartitionTrackerImpl
                 potentialPartitionLocation, partitionDeploymentDescriptors);
         internalReleasePartitionsOnShuffleMaster(
                 excludePersistentPartitions(partitionDeploymentDescriptors));
+        internalPromotePartitionsOnShuffleMaster(
+                getPersistentPartitions(partitionDeploymentDescriptors));
     }
 
     private void internalReleasePartitionsOnTaskExecutor(
@@ -217,6 +219,13 @@ public class JobMasterPartitionTrackerImpl
         }
     }
 
+    private void internalPromotePartitionsOnShuffleMaster(
+            Stream<ResultPartitionDeploymentDescriptor> partitionDeploymentDescriptors) {
+        partitionDeploymentDescriptors
+                .map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
+                .forEach(shuffleMaster::promotePartition);
+    }
+
     private void internalReleasePartitionsOnShuffleMaster(
             Stream<ResultPartitionDeploymentDescriptor> partitionDeploymentDescriptors) {
         partitionDeploymentDescriptors
@@ -238,6 +247,16 @@ public class JobMasterPartitionTrackerImpl
                 .filter(
                         resultPartitionDeploymentDescriptor ->
                                 !resultPartitionDeploymentDescriptor
+                                        .getPartitionType()
+                                        .isPersistent());
+    }
+
+    private static Stream<ResultPartitionDeploymentDescriptor> getPersistentPartitions(
+            Collection<ResultPartitionDeploymentDescriptor> partitionDeploymentDescriptors) {
+        return partitionDeploymentDescriptors.stream()
+                .filter(
+                        resultPartitionDeploymentDescriptor ->
+                                resultPartitionDeploymentDescriptor
                                         .getPartitionType()
                                         .isPersistent());
     }

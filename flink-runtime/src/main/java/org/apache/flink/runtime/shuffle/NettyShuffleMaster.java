@@ -23,17 +23,28 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.LocalExecutionPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.PartitionConnectionInfo;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
+import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Default {@link ShuffleMaster} for netty and local file based shuffle implementation. */
 public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(NettyShuffleMaster.class);
 
     private final int buffersPerInputChannel;
 
@@ -44,6 +55,9 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     private final int sortShuffleMinBuffers;
 
     private final int networkBufferSize;
+
+    private final Map<IntermediateDataSetID, Collection<NettyShuffleDescriptor>>
+            clusterPartitionShuffleDescriptors;
 
     public NettyShuffleMaster(Configuration conf) {
         checkNotNull(conf);
@@ -57,6 +71,7 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         sortShuffleMinBuffers =
                 conf.getInteger(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
         networkBufferSize = ConfigurationParserUtils.getPageSize(conf);
+        clusterPartitionShuffleDescriptors = new HashMap<>();
     }
 
     @Override
@@ -64,7 +79,11 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
             JobID jobID,
             PartitionDescriptor partitionDescriptor,
             ProducerDescriptor producerDescriptor) {
-
+        LOG.debug(
+                "Register Partition for Job: {}, PartitionDescriptor: {}, ProducerDescriptor: {}",
+                jobID,
+                partitionDescriptor,
+                producerDescriptor);
         ResultPartitionID resultPartitionID =
                 new ResultPartitionID(
                         partitionDescriptor.getPartitionId(),
@@ -81,7 +100,33 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     }
 
     @Override
-    public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {}
+    public Collection<NettyShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID) {
+        return clusterPartitionShuffleDescriptors.get(intermediateDataSetID);
+    }
+
+    @Override
+    public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
+        LOG.debug("Release partition externally: {}", shuffleDescriptor.getResultPartitionID());
+        Preconditions.checkState(
+                shuffleDescriptor instanceof NettyShuffleDescriptor,
+                "NettyShuffleMaster can only release NettyShuffleDescriptor but got {}",
+                shuffleDescriptor.getClass().getCanonicalName());
+        final IntermediateDataSetID dataSetID =
+                shuffleDescriptor
+                        .getResultPartitionID()
+                        .getPartitionId()
+                        .getIntermediateDataSetID();
+        final Collection<NettyShuffleDescriptor> descriptors =
+                clusterPartitionShuffleDescriptors.get(dataSetID);
+        if (descriptors == null || !descriptors.contains(shuffleDescriptor)) {
+            return;
+        }
+        descriptors.remove(shuffleDescriptor);
+        if (descriptors.isEmpty()) {
+            clusterPartitionShuffleDescriptors.remove(dataSetID);
+        }
+    }
 
     private static PartitionConnectionInfo createConnectionInfo(
             ProducerDescriptor producerDescriptor, int connectionIndex) {
@@ -120,5 +165,21 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                         desc.getPartitionTypes());
 
         return new MemorySize((long) networkBufferSize * numRequiredNetworkBuffers);
+    }
+
+    @Override
+    public void promotePartition(ShuffleDescriptor shuffleDescriptor) {
+        LOG.debug(
+                "Promote partition to cluster partition: {}",
+                shuffleDescriptor.getResultPartitionID());
+        final IntermediateDataSetID dataSetID =
+                shuffleDescriptor
+                        .getResultPartitionID()
+                        .getPartitionId()
+                        .getIntermediateDataSetID();
+        final Collection<NettyShuffleDescriptor> descriptors =
+                clusterPartitionShuffleDescriptors.computeIfAbsent(
+                        dataSetID, (key) -> new HashSet<>());
+        descriptors.add((NettyShuffleDescriptor) shuffleDescriptor);
     }
 }

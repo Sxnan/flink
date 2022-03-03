@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -37,6 +38,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -46,6 +48,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -102,6 +105,32 @@ public class ShuffleMasterTest extends TestLogger {
         assertArrayEquals(expectedPartitionEvents, TestShuffleMaster.partitionEvents.toArray());
     }
 
+    @Test
+    public void testGetShuffleDescriptors() throws Exception {
+        IntermediateDataSetID id = new IntermediateDataSetID();
+        try (MiniCluster cluster = new MiniCluster(createClusterConfiguration(true))) {
+            cluster.start();
+            cluster.executeJobBlocking(createJobGraphWithPersistentIntermediateDataSet(id));
+        }
+        assertTrue(TestShuffleMaster.currentInstance.get().closed.get());
+
+        String[] expectedPartitionEvents =
+                new String[] {
+                    PARTITION_REGISTRATION_EVENT,
+                    PARTITION_REGISTRATION_EVENT,
+                    PARTITION_REGISTRATION_EVENT,
+                    PARTITION_REGISTRATION_EVENT,
+                    PARTITION_REGISTRATION_EVENT,
+                    PARTITION_REGISTRATION_EVENT,
+                    EXTERNAL_PARTITION_RELEASE_EVENT,
+                    EXTERNAL_PARTITION_RELEASE_EVENT,
+                };
+        assertArrayEquals(expectedPartitionEvents, TestShuffleMaster.partitionEvents.toArray());
+        final Collection<NettyShuffleDescriptor> shuffleDescriptors =
+                TestShuffleMaster.currentInstance.get().getClusterPartitionShuffleDescriptors(id);
+        assertEquals(2, shuffleDescriptors.size());
+    }
+
     private MiniClusterConfiguration createClusterConfiguration(boolean stopTrackingPartition) {
         Configuration configuration = new Configuration();
         configuration.setString(
@@ -129,6 +158,35 @@ public class ShuffleMasterTest extends TestLogger {
                 source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
         JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(source, sink);
+        ExecutionConfig config = new ExecutionConfig();
+        config.setRestartStrategy(fixedDelayRestart(2, Time.seconds(2)));
+        jobGraph.setExecutionConfig(config);
+        return jobGraph;
+    }
+
+    private JobGraph createJobGraphWithPersistentIntermediateDataSet(
+            IntermediateDataSetID intermediateDataSetID) throws Exception {
+        JobVertex source = new JobVertex("source");
+        source.setParallelism(2);
+        source.setInvokableClass(NoOpInvokable.class);
+
+        JobVertex sink = new JobVertex("sink");
+        sink.setParallelism(2);
+        sink.setInvokableClass(NoOpInvokable.class);
+
+        JobVertex sink2 = new JobVertex("sink2");
+        sink2.setParallelism(2);
+        sink2.setInvokableClass(NoOpInvokable.class);
+
+        sink.connectNewDataSetAsInput(
+                source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        sink2.connectNewDataSetAsInput(
+                source,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.BLOCKING_PERSISTENT,
+                intermediateDataSetID);
+
+        JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(source, sink, sink2);
         ExecutionConfig config = new ExecutionConfig();
         config.setRestartStrategy(fixedDelayRestart(2, Time.seconds(2)));
         jobGraph.setExecutionConfig(config);

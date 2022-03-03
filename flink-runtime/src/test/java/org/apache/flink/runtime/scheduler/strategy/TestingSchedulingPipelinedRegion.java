@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -75,6 +76,11 @@ public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegi
     @Override
     public Iterable<ConsumedPartitionGroup> getAllBlockingConsumedPartitionGroups() {
         return Collections.unmodifiableSet(consumedPartitionGroups);
+    }
+
+    @Override
+    public Collection<ConsumedPartitionGroup> getAllPersistentConsumedPartitionGroups() {
+        return Collections.emptyList();
     }
 
     @Override
