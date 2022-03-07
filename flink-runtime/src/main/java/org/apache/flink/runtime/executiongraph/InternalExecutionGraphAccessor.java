@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.SerializedValue;
@@ -64,7 +65,7 @@ public interface InternalExecutionGraphAccessor {
     @Nonnull
     ComponentMainThreadExecutor getJobMasterMainThreadExecutor();
 
-    ShuffleMaster<?> getShuffleMaster();
+    ShuffleMaster<? extends ShuffleDescriptor> getShuffleMaster();
 
     JobMasterPartitionTracker getPartitionTracker();
 

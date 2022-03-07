@@ -142,6 +142,12 @@ public class JobVertex implements java.io.Serializable {
      */
     private String resultOptimizerProperties;
 
+    /**
+     * Optional, the intermediateDataSetId of the cached intermediate dataset that the job vertex
+     * consumes.
+     */
+    @Nullable private final IntermediateDataSetID intermediateDataSetID;
+
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -160,11 +166,24 @@ public class JobVertex implements java.io.Serializable {
      * @param id The id of the job vertex.
      */
     public JobVertex(String name, JobVertexID id) {
+        this(name, id, (IntermediateDataSetID) null);
+    }
+
+    /**
+     * Constructs a new job vertex and assigns it with the given name.
+     *
+     * @param name The name of the new job vertex.
+     * @param id The id of the job vertex.
+     * @param intermediateDataSetID The id of the cached intermediate dataset that the job vertex
+     *     consumes.
+     */
+    public JobVertex(String name, JobVertexID id, IntermediateDataSetID intermediateDataSetID) {
         this.name = name == null ? DEFAULT_NAME : name;
         this.id = id == null ? new JobVertexID() : id;
         OperatorIDPair operatorIDPair =
                 OperatorIDPair.generatedIDOnly(OperatorID.fromJobVertexID(this.id));
         this.operatorIDs = Collections.singletonList(operatorIDPair);
+        this.intermediateDataSetID = intermediateDataSetID;
     }
 
     /**
@@ -175,9 +194,27 @@ public class JobVertex implements java.io.Serializable {
      * @param operatorIDPairs The operator ID pairs of the job vertex.
      */
     public JobVertex(String name, JobVertexID primaryId, List<OperatorIDPair> operatorIDPairs) {
+        this(name, primaryId, operatorIDPairs, null);
+    }
+
+    /**
+     * Constructs a new job vertex and assigns it with the given name.
+     *
+     * @param name The name of the new job vertex.
+     * @param primaryId The id of the job vertex.
+     * @param operatorIDPairs The operator ID pairs of the job vertex.
+     * @param intermediateDataSetID The id of the cached intermediate dataset that the job vertex
+     *     consumes.
+     */
+    public JobVertex(
+            String name,
+            JobVertexID primaryId,
+            List<OperatorIDPair> operatorIDPairs,
+            IntermediateDataSetID intermediateDataSetID) {
         this.name = name == null ? DEFAULT_NAME : name;
         this.id = primaryId == null ? new JobVertexID() : primaryId;
         this.operatorIDs = Collections.unmodifiableList(operatorIDPairs);
+        this.intermediateDataSetID = intermediateDataSetID;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -583,5 +620,10 @@ public class JobVertex implements java.io.Serializable {
     @Override
     public String toString() {
         return this.name + " (" + this.invokableClassName + ')';
+    }
+
+    @Nullable
+    public IntermediateDataSetID getIntermediateDataSetIDToConsume() {
+        return intermediateDataSetID;
     }
 }
