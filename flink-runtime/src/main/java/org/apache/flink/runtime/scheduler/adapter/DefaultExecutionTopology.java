@@ -325,7 +325,8 @@ public class DefaultExecutionTopology implements SchedulingTopology {
                         producedPartitions,
                         vertex::getExecutionState,
                         consumedPartitionGroups,
-                        resultPartitionRetriever);
+                        resultPartitionRetriever,
+                        vertex.getJobVertex().getJobVertex().getIntermediateDataSetIDToConsume());
 
         producedPartitions.forEach(partition -> partition.setProducer(schedulingVertex));
 

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHa
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -48,6 +49,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.topology.Vertex;
@@ -66,6 +68,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -100,7 +103,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private final Set<ExecutionVertexID> verticesWaitingForRestart;
 
-    private final ShuffleMaster<?> shuffleMaster;
+    private final ShuffleMaster<? extends ShuffleDescriptor> shuffleMaster;
 
     private final Time rpcTimeout;
 
@@ -299,6 +302,21 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         final FailureHandlingResult failureHandlingResult =
                 executionFailureHandler.getFailureHandlingResult(
                         executionVertexId, error, timestamp);
+
+        // Notify shuffle master that the cached intermediate dataset is corrupted.
+        if (failureHandlingResult.getError() instanceof CacheCorruptedException) {
+            final IntermediateDataSetID intermediateDataSetID =
+                    Objects.requireNonNull(
+                                    getExecutionGraph()
+                                            .getJobVertex(executionVertexId.getJobVertexId()))
+                            .getJobVertex()
+                            .getIntermediateDataSetIDToConsume();
+            final Collection<? extends ShuffleDescriptor> descriptors =
+                    shuffleMaster.getClusterPartitionShuffleDescriptors(intermediateDataSetID);
+            for (ShuffleDescriptor descriptor : descriptors) {
+                shuffleMaster.removeClusterPartition(descriptor);
+            }
+        }
         maybeRestartTasks(failureHandlingResult);
     }
 

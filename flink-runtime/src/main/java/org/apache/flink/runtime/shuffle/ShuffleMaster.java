@@ -102,9 +102,16 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> extends AutoCloseabl
     /**
      * Promote the given partition to cluster partition.
      *
-     * @param shuffleDescriptor
+     * @param shuffleDescriptor The shuffle descriptors of the partition to promote.
      */
     default void promotePartition(ShuffleDescriptor shuffleDescriptor) {}
+
+    /**
+     * Remove the given partition from cluster partition.
+     *
+     * @param shuffleDescriptor The shuffle descriptors of the cluster partition to be removed.
+     */
+    default void removeClusterPartition(ShuffleDescriptor shuffleDescriptor) {}
 
     /**
      * Release any external resources occupied by the given partition.

@@ -172,6 +172,11 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         LOG.debug(
                 "Promote partition to cluster partition: {}",
                 shuffleDescriptor.getResultPartitionID());
+        Preconditions.checkState(
+                shuffleDescriptor instanceof NettyShuffleDescriptor,
+                "NettyShuffleMaster can only promote partition "
+                        + "with NettyShuffleDescriptor but got %s",
+                shuffleDescriptor.getClass().getCanonicalName());
         final IntermediateDataSetID dataSetID =
                 shuffleDescriptor
                         .getResultPartitionID()
@@ -181,5 +186,32 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                 clusterPartitionShuffleDescriptors.computeIfAbsent(
                         dataSetID, (key) -> new HashSet<>());
         descriptors.add((NettyShuffleDescriptor) shuffleDescriptor);
+    }
+
+    @Override
+    public void removeClusterPartition(ShuffleDescriptor shuffleDescriptor) {
+        LOG.debug("Remove cluster partition: {}", shuffleDescriptor.getResultPartitionID());
+        Preconditions.checkState(
+                shuffleDescriptor instanceof NettyShuffleDescriptor,
+                "NettyShuffleMaster can only remove cluster partition "
+                        + "with NettyShuffleDescriptor but got %s",
+                shuffleDescriptor.getClass().getCanonicalName());
+        final IntermediateDataSetID dataSetID =
+                shuffleDescriptor
+                        .getResultPartitionID()
+                        .getPartitionId()
+                        .getIntermediateDataSetID();
+        final Collection<NettyShuffleDescriptor> descriptors =
+                clusterPartitionShuffleDescriptors.computeIfAbsent(
+                        dataSetID, (key) -> new HashSet<>());
+
+        if (!descriptors.contains(shuffleDescriptor)) {
+            LOG.warn("Removing non-exist cluster partition of IntermediateDataSet {}", dataSetID);
+        }
+        descriptors.remove(shuffleDescriptor);
+
+        if (descriptors.isEmpty()) {
+            clusterPartitionShuffleDescriptors.remove(dataSetID);
+        }
     }
 }

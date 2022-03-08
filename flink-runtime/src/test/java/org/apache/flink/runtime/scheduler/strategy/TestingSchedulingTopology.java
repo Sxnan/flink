@@ -177,6 +177,15 @@ public class TestingSchedulingTopology implements SchedulingTopology {
         return newVertex;
     }
 
+    public TestingSchedulingExecutionVertex newExecutionVertex(
+            IntermediateDataSetID cachedIntermediateDataSetID) {
+        final TestingSchedulingExecutionVertex newVertex =
+                TestingSchedulingExecutionVertex.withCachedIntermediateDataset(
+                        cachedIntermediateDataSetID);
+        addSchedulingExecutionVertex(newVertex);
+        return newVertex;
+    }
+
     public TestingSchedulingTopology connect(
             final TestingSchedulingExecutionVertex producer,
             final TestingSchedulingExecutionVertex consumer) {

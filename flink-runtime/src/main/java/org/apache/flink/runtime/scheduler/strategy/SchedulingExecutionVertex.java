@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.topology.Vertex;
 
@@ -46,4 +47,6 @@ public interface SchedulingExecutionVertex
      * @return list of {@link ConsumedPartitionGroup}s
      */
     List<ConsumedPartitionGroup> getConsumedPartitionGroups();
+
+    IntermediateDataSetID getCacheIntermediateDataSetID();
 }
