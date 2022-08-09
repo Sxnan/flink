@@ -1067,22 +1067,30 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     private void jobStatusChanged(final JobStatus newJobStatus) {
         validateRunsInMainThread();
         if (newJobStatus.isGloballyTerminalState()) {
-            runAsync(
-                    () -> {
-                        Collection<ResultPartitionID> allTracked =
-                                partitionTracker.getAllTrackedPartitions().stream()
-                                        .map(d -> d.getShuffleDescriptor().getResultPartitionID())
-                                        .collect(Collectors.toList());
-                        if (newJobStatus == JobStatus.FINISHED) {
-                            partitionTracker.stopTrackingAndReleaseOrPromotePartitions(allTracked);
-                        } else {
-                            partitionTracker.stopTrackingAndReleasePartitions(allTracked);
-                        }
-                    });
+            Collection<ResultPartitionID> allTracked =
+                    partitionTracker.getAllTrackedPartitions().stream()
+                            .map(d -> d.getShuffleDescriptor().getResultPartitionID())
+                            .collect(Collectors.toList());
+            CompletableFuture<Void> partitionReleasePromoteFuture;
+            if (newJobStatus == JobStatus.FINISHED) {
+                partitionReleasePromoteFuture =
+                        partitionTracker.stopTrackingAndReleaseOrPromotePartitions(allTracked);
+            } else {
+                partitionReleasePromoteFuture =
+                        partitionTracker.stopTrackingAndReleasePartitions(allTracked);
+            }
 
             final ExecutionGraphInfo executionGraphInfo = schedulerNG.requestJob();
+
             futureExecutor.execute(
-                    () -> jobCompletionActions.jobReachedGloballyTerminalState(executionGraphInfo));
+                    () -> {
+                        try {
+                            partitionReleasePromoteFuture.get();
+                        } catch (Throwable e) {
+                            throw new RuntimeException(e);
+                        }
+                        jobCompletionActions.jobReachedGloballyTerminalState(executionGraphInfo);
+                    });
         }
     }
 

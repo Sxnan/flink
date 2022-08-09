@@ -48,7 +48,6 @@ import org.apache.flink.util.OutputTag;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -61,12 +60,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test datastream cache. */
-@Disabled
 public class CacheITCase extends AbstractTestBase {
 
     private StreamExecutionEnvironment env;
@@ -114,6 +115,7 @@ public class CacheITCase extends AbstractTestBase {
             List<Integer> results = CollectionUtil.iteratorToList(resultIterator);
             assertThat(results).containsExactlyInAnyOrder(2, 3, 4);
         }
+        waitForClusterDataset(cachedDataStream);
 
         assertThat(file.delete()).isTrue();
 
@@ -142,6 +144,7 @@ public class CacheITCase extends AbstractTestBase {
             List<Integer> results = CollectionUtil.iteratorToList(resultIterator);
             assertThat(results).containsExactlyInAnyOrder(2, 3, 4);
         }
+        waitForClusterDataset(cachedDataStream);
 
         assertThat(file.delete()).isTrue();
 
@@ -184,7 +187,7 @@ public class CacheITCase extends AbstractTestBase {
             List<Integer> results = CollectionUtil.iteratorToList(resultIterator);
             assertThat(results).containsExactlyInAnyOrder(2, 3, 4);
         }
-
+        waitForClusterDataset(cachedDataStream);
         assertThat(file.delete()).isTrue();
 
         env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
@@ -210,6 +213,7 @@ public class CacheITCase extends AbstractTestBase {
             List<Tuple2<Integer, Integer>> results = CollectionUtil.iteratorToList(resultIterator);
             assertThat(results).containsExactlyInAnyOrder(new Tuple2<>(1, 1), new Tuple2<>(2, 2));
         }
+        waitForClusterDataset(cacheSource);
 
         result =
                 cacheSource.keyBy(t -> t.f1).reduce((v1, v2) -> new Tuple2<>(v1.f0 + v2.f0, v1.f1));
@@ -249,6 +253,7 @@ public class CacheITCase extends AbstractTestBase {
             List<Integer> results = CollectionUtil.iteratorToList(resultIterator);
             assertThat(results).containsExactlyInAnyOrder(1, 2);
         }
+        waitForClusterDataset(cachedSideOutput);
 
         try (CloseableIterator<Integer> resultIterator = cachedSideOutput.executeAndCollect()) {
             List<Integer> results = CollectionUtil.iteratorToList(resultIterator);
@@ -278,6 +283,7 @@ public class CacheITCase extends AbstractTestBase {
         final AbstractID datasetId =
                 ((CacheTransformation<Integer>) cachedDataStream.getTransformation())
                         .getDatasetId();
+        waitForClusterDataset(cachedDataStream);
 
         assertThat(file.delete()).isTrue();
         // overwrite the content of the source file
@@ -300,16 +306,35 @@ public class CacheITCase extends AbstractTestBase {
                                     out.collect(value);
                                 })
                 .returns(Integer.class)
-                .sinkTo(
-                        FileSink.forRowFormat(
-                                        new org.apache.flink.core.fs.Path(outputFile.getPath()),
-                                        new SimpleStringEncoder<Integer>())
-                                .build());
+                .sinkTo(getFileSink(outputFile));
         env.execute();
-        assertThat(getFileContext(outputFile)).containsExactlyInAnyOrder("5", "6", "7");
+        assertThat(getFileContent(outputFile)).containsExactlyInAnyOrder("5", "6", "7");
     }
 
-    private static List<String> getFileContext(File directory) throws IOException {
+    private FileSink<Integer> getFileSink(File outputFile) {
+        return FileSink.forRowFormat(
+                        new org.apache.flink.core.fs.Path(outputFile.getPath()),
+                        new SimpleStringEncoder<Integer>())
+                .build();
+    }
+
+    private void waitForClusterDataset(CachedDataStream<?> cachedDataStream)
+            throws ExecutionException, InterruptedException {
+        final AbstractID datasetId =
+                ((CacheTransformation<?>) cachedDataStream.getTransformation()).getDatasetId();
+        while (true) {
+            final Set<AbstractID> abstractIDS =
+                    miniClusterWithClientResource.getMiniCluster().listCompletedClusterDatasetIds()
+                            .get().stream()
+                            .map(AbstractID::new)
+                            .collect(Collectors.toSet());
+            if (abstractIDS.contains(datasetId)) {
+                return;
+            }
+        }
+    }
+
+    private static List<String> getFileContent(File directory) throws IOException {
         List<String> res = new ArrayList<>();
 
         final Collection<File> filesInBucket = FileUtils.listFiles(directory, null, true);

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
@@ -43,9 +44,9 @@ public interface JobMasterPartitionTracker
             ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor);
 
     /** Releases the given partitions and stop the tracking of partitions that were released. */
-    default void stopTrackingAndReleasePartitions(
+    default CompletableFuture<Void> stopTrackingAndReleasePartitions(
             Collection<ResultPartitionID> resultPartitionIds) {
-        stopTrackingAndReleasePartitions(resultPartitionIds, true);
+        return stopTrackingAndReleasePartitions(resultPartitionIds, true);
     }
 
     /**
@@ -53,14 +54,14 @@ public interface JobMasterPartitionTracker
      * boolean flag indicates whether we need to notify the ShuffleMaster to release all external
      * resources or not.
      */
-    void stopTrackingAndReleasePartitions(
+    CompletableFuture<Void> stopTrackingAndReleasePartitions(
             Collection<ResultPartitionID> resultPartitionIds, boolean releaseOnShuffleMaster);
 
     /**
      * Releases the job partitions and promotes the cluster partitions, and stops the tracking of
      * partitions that were released/promoted.
      */
-    void stopTrackingAndReleaseOrPromotePartitions(
+    CompletableFuture<Void> stopTrackingAndReleaseOrPromotePartitions(
             Collection<ResultPartitionID> resultPartitionIds);
 
     /** Get all the partitions under tracking. */

@@ -107,7 +107,7 @@ public interface TaskExecutorGateway
      * @param partitionToRelease partition ids to release
      * @param partitionsToPromote partitions ids to promote
      */
-    void releaseOrPromotePartitions(
+    CompletableFuture<Acknowledge> releaseOrPromotePartitions(
             JobID jobId,
             Set<ResultPartitionID> partitionToRelease,
             Set<ResultPartitionID> partitionsToPromote);

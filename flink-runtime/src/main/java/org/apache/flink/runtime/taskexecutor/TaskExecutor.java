@@ -903,10 +903,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     @Override
-    public void releaseOrPromotePartitions(
+    public CompletableFuture<Acknowledge> releaseOrPromotePartitions(
             JobID jobId,
             Set<ResultPartitionID> partitionToRelease,
             Set<ResultPartitionID> partitionsToPromote) {
+        log.debug(
+                "Releasing partitions {}. Promoting partitions {}",
+                partitionToRelease,
+                partitionsToPromote);
         try {
             partitionTracker.stopTrackingAndReleaseJobPartitions(partitionToRelease);
             partitionTracker.promoteJobPartitions(partitionsToPromote);
@@ -924,6 +928,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         // TODO: Maybe it's better to return an Acknowledge here to notify the JM about the
         // success/failure with an Exception
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override
