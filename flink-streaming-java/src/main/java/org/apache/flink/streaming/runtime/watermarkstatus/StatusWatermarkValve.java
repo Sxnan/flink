@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.watermarkstatus;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.WatermarkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.watermarkstatus.HeapPriorityQueue.HeapPriorityQueueElement;
@@ -58,6 +59,10 @@ public class StatusWatermarkValve {
     /** A heap-based priority queue to help find the minimum watermark. */
     private final HeapPriorityQueue<InputChannelStatus> alignedChannelStatuses;
 
+    private WatermarkFunction lastOutputWatermarkFunction;
+
+    private int numUseTimestampChannels;
+
     /**
      * Returns a new {@code StatusWatermarkValve}.
      *
@@ -68,7 +73,7 @@ public class StatusWatermarkValve {
         this.channelStatuses = new InputChannelStatus[numInputChannels];
         this.alignedChannelStatuses =
                 new HeapPriorityQueue<>(
-                        (left, right) -> Long.compare(left.watermark, right.watermark),
+                        (left, right) -> Long.compare(left.getWatermark(), right.getWatermark()),
                         numInputChannels);
         for (int i = 0; i < numInputChannels; i++) {
             channelStatuses[i] = new InputChannelStatus();
@@ -79,6 +84,8 @@ public class StatusWatermarkValve {
 
         this.lastOutputWatermark = Long.MIN_VALUE;
         this.lastOutputWatermarkStatus = WatermarkStatus.ACTIVE;
+
+        this.numUseTimestampChannels = 0;
     }
 
     /**
@@ -97,11 +104,23 @@ public class StatusWatermarkValve {
         if (lastOutputWatermarkStatus.isActive()
                 && channelStatuses[channelIndex].watermarkStatus.isActive()) {
             long watermarkMillis = watermark.getTimestamp();
+            final WatermarkFunction watermarkFunction = watermark.getWatermarkFunction();
 
             // if the input watermark's value is less than the last received watermark for its input
             // channel, ignore it also.
-            if (watermarkMillis > channelStatuses[channelIndex].watermark) {
-                channelStatuses[channelIndex].watermark = watermarkMillis;
+            if (watermarkMillis > channelStatuses[channelIndex].watermark
+                    || watermarkFunction != channelStatuses[channelIndex].watermarkFunction) {
+                if (watermarkMillis > channelStatuses[channelIndex].watermark) {
+                    channelStatuses[channelIndex].watermark = watermarkMillis;
+                }
+                if (watermarkFunction != channelStatuses[channelIndex].watermarkFunction) {
+                    if (watermarkFunction == WatermarkFunction.USE_WATERMARK_TIMESTAMP) {
+                        numUseTimestampChannels += 1;
+                    } else {
+                        numUseTimestampChannels -= 1;
+                    }
+                    channelStatuses[channelIndex].watermarkFunction = watermarkFunction;
+                }
 
                 if (channelStatuses[channelIndex].isWatermarkAligned) {
                     adjustAlignedChannelStatuses(channelStatuses[channelIndex]);
@@ -195,9 +214,16 @@ public class StatusWatermarkValve {
 
         // we acknowledge and output the new overall watermark if it really is aggregated
         // from some remaining aligned channel, and is also larger than the last output watermark
-        if (hasAlignedChannels && alignedChannelStatuses.peek().watermark > lastOutputWatermark) {
+        WatermarkFunction watermarkFunction =
+                numUseTimestampChannels > 0
+                        ? WatermarkFunction.USE_WATERMARK_TIMESTAMP
+                        : WatermarkFunction.USE_SYSTEM_TIME;
+        if (hasAlignedChannels
+                && (alignedChannelStatuses.peek().watermark > lastOutputWatermark
+                        || watermarkFunction != lastOutputWatermarkFunction)) {
             lastOutputWatermark = alignedChannelStatuses.peek().watermark;
-            output.emitWatermark(new Watermark(lastOutputWatermark));
+            lastOutputWatermarkFunction = watermarkFunction;
+            output.emitWatermark(new Watermark(lastOutputWatermark, lastOutputWatermarkFunction));
         }
     }
 
@@ -270,6 +296,7 @@ public class StatusWatermarkValve {
     @VisibleForTesting
     protected static class InputChannelStatus implements HeapPriorityQueueElement {
         protected long watermark;
+        protected WatermarkFunction watermarkFunction;
         protected WatermarkStatus watermarkStatus;
         protected boolean isWatermarkAligned;
 
@@ -294,6 +321,14 @@ public class StatusWatermarkValve {
         @Override
         public int getInternalIndex() {
             return heapIndex;
+        }
+
+        public long getWatermark() {
+            if (watermarkFunction == WatermarkFunction.USE_WATERMARK_TIMESTAMP) {
+                return watermark;
+            } else {
+                return System.currentTimeMillis();
+            }
         }
 
         @Override

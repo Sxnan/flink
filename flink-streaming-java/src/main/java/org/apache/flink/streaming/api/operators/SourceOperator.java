@@ -307,6 +307,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     public int currentParallelism() {
                         return getRuntimeContext().getNumberOfParallelSubtasks();
                     }
+
+                    @Override
+                    public WatermarkStrategy<?> getWatermarkStrategy() {
+                        return watermarkStrategy;
+                    }
                 };
 
         sourceReader = readerFactory.apply(context);

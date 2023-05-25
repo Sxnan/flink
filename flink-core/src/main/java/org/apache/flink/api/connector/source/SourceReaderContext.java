@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -70,6 +71,15 @@ public interface SourceReaderContext {
      * @return the parallelism of the Source.
      */
     default int currentParallelism() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Get the watermark strategy of this Source.
+     *
+     * @return The watermark strategy of this Source.
+     */
+    default WatermarkStrategy<?> getWatermarkStrategy() {
         throw new UnsupportedOperationException();
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators.source;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkFunction;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ExceptionInChainedOperatorException;
@@ -39,6 +40,8 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
     private final TimestampsAndWatermarks.WatermarkUpdateListener watermarkEmitted;
     private long maxWatermarkSoFar;
     private boolean isIdle;
+
+    private WatermarkFunction lastWatermarkFunction = null;
 
     @VisibleForTesting
     public WatermarkToDataOutput(PushingAsyncDataInput.DataOutput<?> output) {
@@ -65,18 +68,21 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
     @Override
     public void emitWatermark(Watermark watermark) {
         final long newWatermark = watermark.getTimestamp();
-        if (newWatermark <= maxWatermarkSoFar) {
+        final WatermarkFunction newWatermarkFunction = watermark.getWatermarkFunction();
+        if (newWatermark <= maxWatermarkSoFar && lastWatermarkFunction == newWatermarkFunction) {
             return;
         }
 
         maxWatermarkSoFar = newWatermark;
+        lastWatermarkFunction = newWatermarkFunction;
         watermarkEmitted.updateCurrentEffectiveWatermark(maxWatermarkSoFar);
 
         try {
             markActiveInternally();
 
             output.emitWatermark(
-                    new org.apache.flink.streaming.api.watermark.Watermark(newWatermark));
+                    new org.apache.flink.streaming.api.watermark.Watermark(
+                            newWatermark, newWatermarkFunction));
         } catch (ExceptionInChainedOperatorException e) {
             throw e;
         } catch (Exception e) {

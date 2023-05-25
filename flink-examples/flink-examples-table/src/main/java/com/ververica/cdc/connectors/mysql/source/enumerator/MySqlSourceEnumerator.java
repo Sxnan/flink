@@ -174,6 +174,12 @@ public class MySqlSourceEnumerator implements SplitEnumerator<MySqlSplit, Pendin
     @Override
     public void notifyCheckpointComplete(long checkpointId) {
         splitAssigner.notifyCheckpointComplete(checkpointId);
+
+        if (isAssigningFinished(splitAssigner.getAssignerStatus())) {
+            for (int subtaskId : this.getRegisteredReader()) {
+                context.sendEventToSourceReader(subtaskId, new SnapshotFinishedEvent());
+            }
+        }
         // binlog split may be available after checkpoint complete
         assignSplits();
     }

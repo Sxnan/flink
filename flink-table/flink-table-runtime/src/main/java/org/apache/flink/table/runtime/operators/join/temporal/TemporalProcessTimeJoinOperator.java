@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.join.temporal;
 
+import org.apache.flink.api.common.eventtime.WatermarkFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
@@ -35,6 +38,8 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
+import java.io.IOException;
+
 /**
  * The operator to temporal join a stream on processing time.
  *
@@ -50,6 +55,7 @@ public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorW
     private static final long serialVersionUID = -5182289624027523612L;
 
     private final boolean isLeftOuterJoin;
+    private final InternalTypeInfo<RowData> leftType;
     private final InternalTypeInfo<RowData> rightType;
     private final GeneratedJoinCondition generatedJoinCondition;
 
@@ -59,6 +65,8 @@ public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorW
     private transient JoinedRowData outRow;
     private transient GenericRowData rightNullRow;
     private transient TimestampedCollector<RowData> collector;
+    private WatermarkFunction rightWatermarkFunction = WatermarkFunction.USE_SYSTEM_TIME;
+    private ListState<RowData> bufferedLeftRows;
 
     public TemporalProcessTimeJoinOperator(
             InternalTypeInfo<RowData> rightType,
@@ -66,7 +74,24 @@ public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorW
             long minRetentionTime,
             long maxRetentionTime,
             boolean isLeftOuterJoin) {
+        this(
+                null,
+                rightType,
+                generatedJoinCondition,
+                minRetentionTime,
+                maxRetentionTime,
+                isLeftOuterJoin);
+    }
+
+    public TemporalProcessTimeJoinOperator(
+            InternalTypeInfo<RowData> leftType,
+            InternalTypeInfo<RowData> rightType,
+            GeneratedJoinCondition generatedJoinCondition,
+            long minRetentionTime,
+            long maxRetentionTime,
+            boolean isLeftOuterJoin) {
         super(minRetentionTime, maxRetentionTime);
+        this.leftType = leftType;
         this.rightType = rightType;
         this.generatedJoinCondition = generatedJoinCondition;
         this.isLeftOuterJoin = isLeftOuterJoin;
@@ -86,13 +111,27 @@ public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorW
         this.collector = new TimestampedCollector<>(output);
         this.outRow = new JoinedRowData();
         this.rightNullRow = new GenericRowData(rightType.toRowSize());
+        this.bufferedLeftRows =
+                getRuntimeContext()
+                        .getListState(
+                                new ListStateDescriptor<RowData>("bufferedLeftRows", leftType));
         // consider watermark from left stream only.
         super.processWatermark2(Watermark.MAX_WATERMARK);
     }
 
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
-        RowData leftSideRow = element.getValue();
+        if (rightWatermarkFunction == WatermarkFunction.USE_SYSTEM_TIME) {
+            for (RowData leftRow : bufferedLeftRows.get()) {
+                join(leftRow);
+            }
+            join(element.getValue());
+        } else {
+            bufferedLeftRows.add(element.getValue());
+        }
+    }
+
+    private void join(RowData leftSideRow) throws IOException {
         RowData rightSideRow = rightState.value();
 
         if (rightSideRow == null) {
@@ -129,6 +168,21 @@ public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorW
             rightState.clear();
             cleanupLastTimer();
         }
+    }
+
+    @Override
+    public void processWatermark1(Watermark mark) throws Exception {
+        LOG.info("Process watermark1 {}", mark);
+        super.processWatermark1(mark);
+    }
+
+    @Override
+    public void processWatermark2(Watermark mark) throws Exception {
+        LOG.info("Process watermark2 {}", mark);
+        if (mark.getWatermarkFunction() != rightWatermarkFunction) {
+            rightWatermarkFunction = mark.getWatermarkFunction();
+        }
+        super.processWatermark2(mark);
     }
 
     @Override

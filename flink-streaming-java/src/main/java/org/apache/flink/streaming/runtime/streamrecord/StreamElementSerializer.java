@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.WatermarkFunction;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -166,6 +167,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         } else if (value.isWatermark()) {
             target.write(TAG_WATERMARK);
             target.writeLong(value.asWatermark().getTimestamp());
+            target.writeInt(value.asWatermark().getWatermarkFunction().ordinal());
         } else if (value.isWatermarkStatus()) {
             target.write(TAG_STREAM_STATUS);
             target.writeInt(value.asWatermarkStatus().getStatus());
@@ -189,7 +191,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         } else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
             return new StreamRecord<T>(typeSerializer.deserialize(source));
         } else if (tag == TAG_WATERMARK) {
-            return new Watermark(source.readLong());
+            return new Watermark(source.readLong(), WatermarkFunction.values()[source.readInt()]);
         } else if (tag == TAG_STREAM_STATUS) {
             return new WatermarkStatus(source.readInt());
         } else if (tag == TAG_LATENCY_MARKER) {
@@ -217,7 +219,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
             reuseRecord.replace(value);
             return reuseRecord;
         } else if (tag == TAG_WATERMARK) {
-            return new Watermark(source.readLong());
+            return new Watermark(source.readLong(), WatermarkFunction.values()[source.readInt()]);
         } else if (tag == TAG_LATENCY_MARKER) {
             return new LatencyMarker(
                     source.readLong(),

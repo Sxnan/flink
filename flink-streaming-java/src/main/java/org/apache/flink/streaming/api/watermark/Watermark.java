@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.watermark;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.eventtime.WatermarkFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 
 /**
@@ -50,14 +51,29 @@ public final class Watermark extends StreamElement {
     /** The timestamp of the watermark in milliseconds. */
     private final long timestamp;
 
+    private final WatermarkFunction watermarkFunction;
+
     /** Creates a new watermark with the given timestamp in milliseconds. */
     public Watermark(long timestamp) {
+        this(timestamp, WatermarkFunction.USE_WATERMARK_TIMESTAMP);
+    }
+
+    public Watermark(long timestamp, WatermarkFunction watermarkFunction) {
         this.timestamp = timestamp;
+        this.watermarkFunction = watermarkFunction;
+
+        if (watermarkFunction == WatermarkFunction.USE_SYSTEM_TIME && timestamp != Long.MIN_VALUE) {
+            throw new IllegalArgumentException("");
+        }
     }
 
     /** Returns the timestamp associated with this {@link Watermark} in milliseconds. */
     public long getTimestamp() {
         return timestamp;
+    }
+
+    public WatermarkFunction getWatermarkFunction() {
+        return watermarkFunction;
     }
 
     // ------------------------------------------------------------------------
@@ -77,6 +93,6 @@ public final class Watermark extends StreamElement {
 
     @Override
     public String toString() {
-        return "Watermark @ " + timestamp;
+        return "Watermark @ " + timestamp + " (" + watermarkFunction + ")";
     }
 }

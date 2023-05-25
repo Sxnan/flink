@@ -16,6 +16,10 @@
 
 package com.ververica.cdc.connectors.mysql.source.reader;
 
+import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkFunction;
+import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
@@ -23,10 +27,12 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import com.ververica.cdc.connectors.mysql.debezium.DebeziumUtils;
 import com.ververica.cdc.connectors.mysql.source.config.MySqlSourceConfig;
+import com.ververica.cdc.connectors.mysql.source.enumerator.SnapshotFinishedEvent;
 import com.ververica.cdc.connectors.mysql.source.events.BinlogSplitMetaEvent;
 import com.ververica.cdc.connectors.mysql.source.events.BinlogSplitMetaRequestEvent;
 import com.ververica.cdc.connectors.mysql.source.events.FinishedSnapshotSplitsAckEvent;
@@ -79,7 +85,12 @@ public class MySqlSourceReader<T>
     private final Map<String, MySqlBinlogSplit> uncompletedBinlogSplits;
     private final int subtaskId;
     private final MySqlSourceReaderContext mySqlSourceReaderContext;
+    private final FutureCompletingBlockingQueue<RecordsWithSplitIds<SourceRecords>> elementQueue;
     private MySqlBinlogSplit suspendedBinlogSplit;
+
+    private boolean firstPoll = true;
+    private boolean snapshotFinished = false;
+    private boolean watermarkOnSystemTimeSent = false;
 
     public MySqlSourceReader(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<SourceRecords>> elementQueue,
@@ -94,6 +105,7 @@ public class MySqlSourceReader<T>
                 recordEmitter,
                 config,
                 context.getSourceReaderContext());
+        this.elementQueue = elementQueue;
         this.sourceConfig = sourceConfig;
         this.finishedUnackedSplits = new HashMap<>();
         this.uncompletedBinlogSplits = new HashMap<>();
@@ -271,6 +283,10 @@ public class MySqlSourceReader<T>
                 suspendedBinlogSplit = null;
                 this.addSplits(Collections.singletonList(binlogSplit));
             }
+        } else if (sourceEvent instanceof SnapshotFinishedEvent) {
+            LOG.info("Received SnapshotFinishedEvent.");
+            snapshotFinished = true;
+            elementQueue.notifyAvailable();
         } else {
             super.handleSourceEvents(sourceEvent);
         }
@@ -357,5 +373,30 @@ public class MySqlSourceReader<T>
     @Override
     protected MySqlSplit toSplitType(String splitId, MySqlSplitState splitState) {
         return splitState.toMySqlSplit();
+    }
+
+    @Override
+    public InputStatus pollNext(ReaderOutput<T> output) throws Exception {
+        if (firstPoll) {
+            if (isProcessingTime()) {
+                output.emitWatermark(
+                        new Watermark(Long.MIN_VALUE, WatermarkFunction.USE_WATERMARK_TIMESTAMP));
+            }
+            firstPoll = false;
+        }
+
+        if (snapshotFinished && !watermarkOnSystemTimeSent && isProcessingTime()) {
+            LOG.info("Snapshot finished send USE_SYSTEM_TIME.");
+            output.emitWatermark(new Watermark(Long.MIN_VALUE, WatermarkFunction.USE_SYSTEM_TIME));
+            watermarkOnSystemTimeSent = true;
+        }
+        return super.pollNext(output);
+    }
+
+    private boolean isProcessingTime() {
+        // TODO: Find a better way to determine if the job is running in processing time or
+        //  event time
+        return context.getWatermarkStrategy().createWatermarkGenerator(() -> context.metricGroup())
+                instanceof NoWatermarksGenerator;
     }
 }

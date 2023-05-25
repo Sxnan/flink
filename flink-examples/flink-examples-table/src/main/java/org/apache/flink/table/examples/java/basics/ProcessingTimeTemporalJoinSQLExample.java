@@ -53,13 +53,15 @@ public class ProcessingTimeTemporalJoinSQLExample {
         tEnv.executeSql(
                 "CREATE TEMPORARY TABLE `user_info` (\n"
                         + "    `id` INTEGER PRIMARY KEY NOT ENFORCED, \n"
-                        + "    `gender` STRING\n"
+                        + "    `gender` STRING, \n"
+                        + "    operation_ts TIMESTAMP_LTZ(3) METADATA FROM 'op_ts' VIRTUAL"
                         + ") WITH (\n"
                         + "    'connector' = 'mysql-cdc',\n"
                         + "    'database-name' = 'flink_cdc',\n"
                         + "    'hostname' = 'localhost',\n"
                         + "    'username' = 'sxnan',\n"
                         + "    'password' = 'sxnan',\n"
+                        + "    'scan.incremental.snapshot.chunk.size' = '2',\n"
                         + "    'table-name' = 'user_info'\n"
                         + ");");
 
@@ -71,7 +73,7 @@ public class ProcessingTimeTemporalJoinSQLExample {
                         + "    'connector' = 'datagen',\n"
                         + "    'rows-per-second' = '1',\n"
                         + "    'fields.id.min' = '0',\n"
-                        + "    'fields.id.max' = '9'\n"
+                        + "    'fields.id.max' = '10'\n"
                         + ");");
 
         tEnv.executeSql(

@@ -61,14 +61,31 @@ public final class Watermark implements Serializable {
     /** The timestamp of the watermark in milliseconds. */
     private final long timestamp;
 
+    private final WatermarkFunction watermarkFunction;
+
     /** Creates a new watermark with the given timestamp in milliseconds. */
     public Watermark(long timestamp) {
+        this(timestamp, WatermarkFunction.USE_WATERMARK_TIMESTAMP);
+    }
+
+    public Watermark(long timestamp, WatermarkFunction watermarkFunction) {
         this.timestamp = timestamp;
+        this.watermarkFunction = watermarkFunction;
+
+        if (watermarkFunction == WatermarkFunction.USE_SYSTEM_TIME && timestamp != Long.MIN_VALUE) {
+            throw new IllegalArgumentException("");
+        }
     }
 
     /** Returns the timestamp associated with this Watermark. */
     public long getTimestamp() {
         return timestamp;
+    }
+
+    // The returned function enum specifies how to interpret this
+    // watermark message.
+    public WatermarkFunction getWatermarkFunction() {
+        return watermarkFunction;
     }
 
     /**

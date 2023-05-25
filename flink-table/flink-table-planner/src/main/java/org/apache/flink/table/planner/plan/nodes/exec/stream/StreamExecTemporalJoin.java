@@ -276,6 +276,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                     isLeftOuterJoin);
         } else {
             return new TemporalProcessTimeJoinOperator(
+                    InternalTypeInfo.of(leftInputType),
                     InternalTypeInfo.of(rightInputType),
                     generatedJoinCondition,
                     minRetentionTime,
