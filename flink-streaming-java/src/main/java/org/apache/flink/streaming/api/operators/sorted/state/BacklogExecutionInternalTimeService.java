@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.operators.sorted.state;
 
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
-import org.apache.flink.runtime.state.PriorityComparator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimerHeapInternalTimer;
@@ -34,9 +33,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An implementation of a {@link InternalTimerService} that manages timers with a single active key
- * at a time. Can be used in a BATCH execution mode.
+ * at a time. This is used by {@link
+ * org.apache.flink.streaming.api.operators.InternalBacklogAwareTimerServiceImpl} during backlog
+ * processing.
  */
-public class BatchExecutionInternalTimeService<K, N> implements InternalTimerService<N> {
+public class BacklogExecutionInternalTimeService<K, N> implements InternalTimerService<N> {
     private static final Logger LOG =
             LoggerFactory.getLogger(BatchExecutionInternalTimeService.class);
 
@@ -59,20 +60,9 @@ public class BatchExecutionInternalTimeService<K, N> implements InternalTimerSer
     private final Triggerable<K, N> triggerTarget;
 
     private K currentKey;
+    private long backlogWatermark;
 
-    BatchExecutionInternalTimeService(
-            ProcessingTimeService processingTimeService, Triggerable<K, N> triggerTarget) {
-
-        this(
-                processingTimeService,
-                triggerTarget,
-                new BatchExecutionInternalPriorityQueueSet<>(
-                        PriorityComparator.forPriorityComparableObjects(), 128),
-                new BatchExecutionInternalPriorityQueueSet<>(
-                        PriorityComparator.forPriorityComparableObjects(), 128));
-    }
-
-    BatchExecutionInternalTimeService(
+    public BacklogExecutionInternalTimeService(
             ProcessingTimeService processingTimeService,
             Triggerable<K, N> triggerTarget,
             KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue,
@@ -151,15 +141,28 @@ public class BatchExecutionInternalTimeService<K, N> implements InternalTimerSer
             return;
         }
 
-        currentWatermark = Long.MAX_VALUE;
         InternalTimer<K, N> timer;
-        while ((timer = eventTimeTimersQueue.poll()) != null) {
+
+        while ((timer = eventTimeTimersQueue.peek()) != null
+                && timer.getTimestamp() <= backlogWatermark) {
+            eventTimeTimersQueue.poll();
             triggerTarget.onEventTime(timer);
         }
-        while ((timer = processingTimeTimersQueue.poll()) != null) {
-            triggerTarget.onProcessingTime(timer);
+
+        while ((timer = processingTimeTimersQueue.peek()) != null
+                && timer.getTimestamp() <= processingTimeService.getCurrentProcessingTime()) {
+            eventTimeTimersQueue.poll();
+            triggerTarget.onEventTime(timer);
         }
-        currentWatermark = Long.MIN_VALUE;
+
+        if (currentKey == null) {
+            currentWatermark = backlogWatermark;
+        }
+
         this.currentKey = currentKey;
+    }
+
+    public void setBacklogWatermark(long watermark) {
+        backlogWatermark = watermark;
     }
 }

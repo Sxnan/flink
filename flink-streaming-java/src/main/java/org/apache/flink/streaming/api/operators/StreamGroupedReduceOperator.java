@@ -22,7 +22,10 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.event.RecordAttributes;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 /**
  * A {@link StreamOperator} for executing a {@link ReduceFunction} on a {@link
@@ -41,9 +44,20 @@ public class StreamGroupedReduceOperator<IN>
 
     private final TypeSerializer<IN> serializer;
 
+    private boolean backlog = false;
+    private Object lastKey;
+
+    private IN lastValue;
+
     public StreamGroupedReduceOperator(ReduceFunction<IN> reducer, TypeSerializer<IN> serializer) {
         super(reducer);
         this.serializer = serializer;
+    }
+
+    @Override
+    public void setup(
+            StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<IN>> output) {
+        super.setup(containingTask, config, output);
     }
 
     @Override
@@ -55,6 +69,37 @@ public class StreamGroupedReduceOperator<IN>
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
+        if (!backlog) {
+            processRealTimeData(element);
+        } else {
+            processBacklogData(element);
+        }
+    }
+
+    private void processBacklogData(StreamRecord<IN> element) throws Exception {
+        Object currentKey = getCurrentKey();
+
+        if (lastKey != currentKey) {
+            if (lastKey != null) {
+                setCurrentKey(lastKey);
+                values.update(lastValue);
+                output.collect(element.copy(lastValue));
+            }
+
+            setCurrentKey(currentKey);
+            lastValue = values.value();
+        }
+
+        if (lastValue != null) {
+            lastValue = userFunction.reduce(lastValue, element.getValue());
+        } else {
+            lastValue = element.getValue();
+        }
+
+        lastKey = currentKey;
+    }
+
+    private void processRealTimeData(StreamRecord<IN> element) throws Exception {
         IN value = element.getValue();
         IN currentValue = values.value();
 
@@ -66,5 +111,32 @@ public class StreamGroupedReduceOperator<IN>
             values.update(value);
             output.collect(element.replace(value));
         }
+    }
+
+    @Override
+    public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+        super.processRecordAttributes(recordAttributes);
+        if (backlog == recordAttributes.isBacklog()) {
+            return;
+        }
+        backlog = recordAttributes.isBacklog();
+
+        if (recordAttributes.isBacklog()) {
+            LOG.info("Switch to backlog = true");
+            return;
+        }
+
+        LOG.info("Switch to backlog = false");
+
+        if (lastKey != null) {
+            setCurrentKey(lastKey);
+            values.update(lastValue);
+            output.collect(new StreamRecord<>(lastValue));
+        }
+    }
+
+    @Override
+    public OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder().setInternalSorterSupported(true).build();
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
@@ -78,6 +79,11 @@ public class SourceOperatorTestHarness<OUT> extends AbstractStreamOperatorTestHa
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {
             output.emitLatencyMarker(latencyMarker);
+        }
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+            output.emitRecordAttributes(recordAttributes);
         }
     }
 }

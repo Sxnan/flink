@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -69,4 +70,10 @@ public interface Input<IN> {
      * guaranteed to not be called concurrently with other methods of the operator.
      */
     void setKeyContextElement(StreamRecord<IN> record) throws Exception;
+
+    /**
+     * Processes a {@link RecordAttributes} that arrived at this input. This method is guaranteed to
+     * not be called concurrently with other methods of the operator.
+     */
+    default void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {}
 }

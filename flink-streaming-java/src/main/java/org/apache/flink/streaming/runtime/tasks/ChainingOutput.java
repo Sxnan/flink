@@ -21,6 +21,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
@@ -152,6 +153,32 @@ class ChainingOutput<T>
             } catch (Exception e) {
                 throw new ExceptionInChainedOperatorException(e);
             }
+        }
+    }
+
+    @Override
+    public void emitRecordAttributes(RecordAttributes recordAttributes) {
+        if (this.outputTag != null) {
+            // we are not responsible for emitting to the main output.
+            return;
+        }
+        try {
+            input.processRecordAttributes(recordAttributes);
+        } catch (Exception e) {
+            throw new ExceptionInChainedOperatorException(e);
+        }
+    }
+
+    @Override
+    public void emitRecordAttributes(OutputTag<?> outputTag, RecordAttributes recordAttributes) {
+        if (!OutputTag.isResponsibleFor(this.outputTag, outputTag)) {
+            return;
+        }
+
+        try {
+            input.processRecordAttributes(recordAttributes);
+        } catch (Exception e) {
+            throw new ExceptionInChainedOperatorException(e);
         }
     }
 }

@@ -70,7 +70,7 @@ public class BatchExecutionUtils {
         }
     }
 
-    private static int deriveMemoryWeight(ReadableConfig configuration) {
+    public static int deriveMemoryWeight(ReadableConfig configuration) {
         return Math.max(1, configuration.get(ExecutionOptions.SORTED_INPUTS_MEMORY).getMebiBytes());
     }
 

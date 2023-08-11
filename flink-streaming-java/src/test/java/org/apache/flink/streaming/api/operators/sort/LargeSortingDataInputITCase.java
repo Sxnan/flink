@@ -29,6 +29,7 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -218,6 +219,9 @@ public class LargeSortingDataInputITCase {
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {}
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {}
 
         public int getSeenRecords() {
             return seenRecords;

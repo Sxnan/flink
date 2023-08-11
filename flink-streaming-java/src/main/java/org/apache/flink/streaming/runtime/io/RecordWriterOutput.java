@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -212,5 +213,34 @@ public class RecordWriterOutput<OUT>
     @Override
     public Gauge<Long> getWatermarkGauge() {
         return watermarkGauge;
+    }
+
+    @Override
+    public void emitRecordAttributes(RecordAttributes recordAttributes) {
+        if (this.outputTag != null) {
+            // we are not responsible for emitting to the main output.
+            return;
+        }
+
+        try {
+            broadcastEvent(recordAttributes, false);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    @Override
+    public void emitRecordAttributes(OutputTag<?> outputTag, RecordAttributes recordAttributes) {
+        if (!OutputTag.isResponsibleFor(this.outputTag, outputTag)) {
+            // we are not responsible for emitting to the side-output specified by this
+            // OutputTag.
+            return;
+        }
+
+        try {
+            broadcastEvent(recordAttributes, false);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

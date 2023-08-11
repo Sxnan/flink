@@ -21,6 +21,12 @@
             <td>The interval of the automatic watermark emission. Watermarks are used throughout the streaming system to keep track of the progress of time. They are used, for example, for time based windowing.</td>
         </tr>
         <tr>
+            <td><h5>pipeline.backlog.watermark-lag-threshold</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>The threshold of watermark lag for backlog detection. A source is considered to be processing backlog if its watermark lags behind the current time by a value greater than the threshold. If it is null, source will not report its backlog status based on watermark lag. If it is not null, it must be greater than 0.</td>
+        </tr>
+        <tr>
             <td><h5>pipeline.cached-files</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>

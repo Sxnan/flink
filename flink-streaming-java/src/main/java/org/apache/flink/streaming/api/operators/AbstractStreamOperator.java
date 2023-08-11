@@ -35,6 +35,8 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.event.RecordAttributes;
+import org.apache.flink.runtime.event.RecordAttributesBuilder;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
@@ -61,6 +63,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -147,6 +152,9 @@ public abstract class AbstractStreamOperator<OUT>
     // ---------------- time handler ------------------
 
     protected transient ProcessingTimeService processingTimeService;
+
+    protected transient RecordAttributes lastRecordAttributes1;
+    protected transient RecordAttributes lastRecordAttributes2;
 
     // ------------------------------------------------------------------------
     //  Life Cycle
@@ -648,5 +656,43 @@ public abstract class AbstractStreamOperator<OUT>
 
     protected Optional<InternalTimeServiceManager<?>> getTimeServiceManager() {
         return Optional.ofNullable(timeServiceManager);
+    }
+
+    public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+        lastRecordAttributes1 = recordAttributes;
+        if (timeServiceManager != null) {
+            ((InternalBacklogAwareTimerServiceManagerImpl<?>) timeServiceManager)
+                    .setBacklog(recordAttributes.isBacklog());
+        }
+        output.emitRecordAttributes(
+                new RecordAttributesBuilder(Collections.singletonList(recordAttributes)).build());
+    }
+
+    public void processRecordAttributes1(RecordAttributes recordAttributes) {
+        lastRecordAttributes1 = recordAttributes;
+        List<RecordAttributes> lastRecordAttributes = getTwoInputsLastRecordAttributes();
+        output.emitRecordAttributes(new RecordAttributesBuilder(lastRecordAttributes).build());
+    }
+
+    public void processRecordAttributes2(RecordAttributes recordAttributes) {
+        lastRecordAttributes2 = recordAttributes;
+        List<RecordAttributes> lastRecordAttributes = getTwoInputsLastRecordAttributes();
+        output.emitRecordAttributes(new RecordAttributesBuilder(lastRecordAttributes).build());
+    }
+
+    private List<RecordAttributes> getTwoInputsLastRecordAttributes() {
+        List<RecordAttributes> lastRecordAttributes;
+        if (lastRecordAttributes1 == null && lastRecordAttributes2 == null) {
+            // should not reach here.
+            throw new RuntimeException(
+                    "lastRecordAttributes1 and lastRecordAttributes2 cannot be both null.");
+        } else if (lastRecordAttributes1 != null && lastRecordAttributes2 != null) {
+            lastRecordAttributes = Arrays.asList(lastRecordAttributes1, lastRecordAttributes2);
+        } else if (lastRecordAttributes1 != null) {
+            lastRecordAttributes = Collections.singletonList(lastRecordAttributes1);
+        } else {
+            lastRecordAttributes = Collections.singletonList(lastRecordAttributes2);
+        }
+        return lastRecordAttributes;
     }
 }

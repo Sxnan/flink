@@ -541,6 +541,16 @@ public class StreamConfig implements Serializable {
                 maxSubtasksPerChannelStateFile);
     }
 
+    public void setCheckpointIntervalDuringBacklog(long checkpointIntervalDuringBacklog) {
+        config.set(
+                ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG,
+                Duration.ofMillis(checkpointIntervalDuringBacklog));
+    }
+
+    public Duration getCheckpointIntervalDuringBacklog() {
+        return config.get(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG);
+    }
+
     /**
      * Sets the job vertex level non-chained outputs. The given output list must have the same order
      * with {@link JobVertex#getProducedDataSets()}.
@@ -795,6 +805,8 @@ public class StreamConfig implements Serializable {
          */
         SORTED,
 
+        SORTED_DURING_BACKLOG,
+
         /**
          * Records from {@link #PASS_THROUGH} inputs are passed to the operator before passing any
          * records from {@link #SORTED} inputs. There are no guarantees on ordering between and
@@ -878,5 +890,11 @@ public class StreamConfig implements Serializable {
         return inputConfig instanceof StreamConfig.NetworkInputConfig
                 && ((StreamConfig.NetworkInputConfig) inputConfig).getInputRequirement()
                         == StreamConfig.InputRequirement.SORTED;
+    }
+
+    public static boolean requiresSortingDuringBacklog(StreamConfig.InputConfig inputConfig) {
+        return inputConfig instanceof StreamConfig.NetworkInputConfig
+                && ((StreamConfig.NetworkInputConfig) inputConfig).getInputRequirement()
+                        == InputRequirement.SORTED_DURING_BACKLOG;
     }
 }

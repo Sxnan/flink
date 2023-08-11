@@ -32,6 +32,7 @@ import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.InternalSplitEnumeratorMetricGroup;
+import org.apache.flink.runtime.operators.coordination.IsBacklogEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
@@ -112,6 +113,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     private final boolean supportsConcurrentExecutionAttempts;
     private final boolean[] subtaskHasNoMoreSplits;
     private volatile boolean closed;
+    private volatile Boolean backlog = null;
 
     public SourceCoordinatorContext(
             SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
@@ -370,6 +372,16 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         if (checkpointCoordinator != null) {
             checkpointCoordinator.setIsProcessingBacklog(operatorID, isProcessingBacklog);
         }
+        backlog = isProcessingBacklog;
+        callInCoordinatorThread(
+                () -> {
+                    final IsBacklogEvent isBacklogEvent = new IsBacklogEvent(isProcessingBacklog);
+                    for (int i = 0; i < getCoordinatorContext().currentParallelism(); i++) {
+                        sendEventToSourceOperatorIfTaskReady(i, isBacklogEvent);
+                    }
+                    return null;
+                },
+                "Failed to send IsBacklogEvent to reader.");
     }
 
     // --------- Package private additional methods for the SourceCoordinator ------------
@@ -627,6 +639,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 throw new IllegalStateException("No cached split is expected.");
             }
         }
+    }
+
+    public Boolean isBacklog() {
+        return backlog;
     }
 
     /** Maintains the subtask gateways for different execution attempts of different subtasks. */
