@@ -115,6 +115,12 @@ public class StreamConfig implements Serializable {
     private static final String TIME_CHARACTERISTIC = "timechar";
 
     private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
+
+    private static final ConfigOption<Boolean> CHECKPOINT_INTERVAL_DURING_BACKLOG_SPECIFIED =
+            ConfigOptions.key("checkpointIntervalDuringBacklogSpecified")
+                    .booleanType()
+                    .defaultValue(false);
+
     private static final ConfigOption<Boolean> STATE_BACKEND_USE_MANAGED_MEMORY =
             ConfigOptions.key("statebackend.useManagedMemory")
                     .booleanType()
@@ -541,6 +547,27 @@ public class StreamConfig implements Serializable {
                 maxSubtasksPerChannelStateFile);
     }
 
+    public void setCheckpointIntervalDuringBacklog(long checkpointIntervalDuringBacklog) {
+        config.set(
+                ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG,
+                Duration.ofMillis(checkpointIntervalDuringBacklog));
+    }
+
+    public Duration getCheckpointIntervalDuringBacklog() {
+        return config.get(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG);
+    }
+
+    public void setCheckpointIntervalDuringBacklogSpecified(
+            boolean checkpointIntervalDuringBacklogSpecified) {
+        config.set(
+                CHECKPOINT_INTERVAL_DURING_BACKLOG_SPECIFIED,
+                checkpointIntervalDuringBacklogSpecified);
+    }
+
+    public boolean isCheckpointIntervalDuringBacklogSpecified() {
+        return config.getBoolean(CHECKPOINT_INTERVAL_DURING_BACKLOG_SPECIFIED);
+    }
+
     /**
      * Sets the job vertex level non-chained outputs. The given output list must have the same order
      * with {@link JobVertex#getProducedDataSets()}.
@@ -795,6 +822,8 @@ public class StreamConfig implements Serializable {
          */
         SORTED,
 
+        SORTED_DURING_BACKLOG,
+
         /**
          * Records from {@link #PASS_THROUGH} inputs are passed to the operator before passing any
          * records from {@link #SORTED} inputs. There are no guarantees on ordering between and
@@ -878,5 +907,11 @@ public class StreamConfig implements Serializable {
         return inputConfig instanceof StreamConfig.NetworkInputConfig
                 && ((StreamConfig.NetworkInputConfig) inputConfig).getInputRequirement()
                         == StreamConfig.InputRequirement.SORTED;
+    }
+
+    public static boolean requiresSortingDuringBacklog(StreamConfig.InputConfig inputConfig) {
+        return inputConfig instanceof StreamConfig.NetworkInputConfig
+                && ((StreamConfig.NetworkInputConfig) inputConfig).getInputRequirement()
+                        == InputRequirement.SORTED_DURING_BACKLOG;
     }
 }

@@ -63,15 +63,27 @@ public class BatchExecutionInternalTimeService<K, N> implements InternalTimerSer
     BatchExecutionInternalTimeService(
             ProcessingTimeService processingTimeService, Triggerable<K, N> triggerTarget) {
 
+        this(
+                processingTimeService,
+                triggerTarget,
+                new BatchExecutionInternalPriorityQueueSet<>(
+                        PriorityComparator.forPriorityComparableObjects(), 128),
+                new BatchExecutionInternalPriorityQueueSet<>(
+                        PriorityComparator.forPriorityComparableObjects(), 128));
+    }
+
+    BatchExecutionInternalTimeService(
+            ProcessingTimeService processingTimeService,
+            Triggerable<K, N> triggerTarget,
+            KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue,
+            KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>>
+                    processingTimeTimersQueue) {
+
         this.processingTimeService = checkNotNull(processingTimeService);
         this.triggerTarget = checkNotNull(triggerTarget);
 
-        this.processingTimeTimersQueue =
-                new BatchExecutionInternalPriorityQueueSet<>(
-                        PriorityComparator.forPriorityComparableObjects(), 128);
-        this.eventTimeTimersQueue =
-                new BatchExecutionInternalPriorityQueueSet<>(
-                        PriorityComparator.forPriorityComparableObjects(), 128);
+        this.processingTimeTimersQueue = processingTimeTimersQueue;
+        this.eventTimeTimersQueue = eventTimeTimersQueue;
     }
 
     @Override

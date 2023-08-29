@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
@@ -60,6 +61,7 @@ public abstract class AbstractStreamTaskNetworkInput<
     protected final StatusWatermarkValve statusWatermarkValve;
 
     protected final int inputIndex;
+    private final RecordAttributesValve recordAttributesValve;
     private InputChannelInfo lastChannel = null;
     private R currentRecordDeserializer = null;
 
@@ -87,6 +89,8 @@ public abstract class AbstractStreamTaskNetworkInput<
         this.inputIndex = inputIndex;
         this.recordDeserializers = checkNotNull(recordDeserializers);
         this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
+        this.recordAttributesValve =
+                new RecordAttributesValve(checkpointedInputGate.getNumberOfInputChannels());
     }
 
     @Override
@@ -123,7 +127,7 @@ public abstract class AbstractStreamTaskNetworkInput<
                 if (bufferOrEvent.get().isBuffer()) {
                     processBuffer(bufferOrEvent.get());
                 } else {
-                    DataInputStatus status = processEvent(bufferOrEvent.get());
+                    DataInputStatus status = processEvent(bufferOrEvent.get(), output);
                     if (status == DataInputStatus.MORE_AVAILABLE && canEmitBatchOfRecords.check()) {
                         continue;
                     }
@@ -159,7 +163,8 @@ public abstract class AbstractStreamTaskNetworkInput<
         }
     }
 
-    protected DataInputStatus processEvent(BufferOrEvent bufferOrEvent) {
+    protected DataInputStatus processEvent(BufferOrEvent bufferOrEvent, DataOutput<T> output)
+            throws Exception {
         // Event received
         final AbstractEvent event = bufferOrEvent.getEvent();
         if (event.getClass() == EndOfData.class) {
@@ -182,6 +187,15 @@ public abstract class AbstractStreamTaskNetworkInput<
         } else if (event.getClass() == EndOfChannelStateEvent.class) {
             if (checkpointedInputGate.allChannelsRecovered()) {
                 return DataInputStatus.END_OF_RECOVERY;
+            }
+        } else if (event.getClass() == RecordAttributes.class) {
+            final boolean attributeChanged =
+                    recordAttributesValve.inputRecordAttributes(
+                            (RecordAttributes) event,
+                            bufferOrEvent.getChannelInfo().getInputChannelIdx(),
+                            output);
+            if (attributeChanged) {
+                return DataInputStatus.NOTHING_AVAILABLE;
             }
         }
         return DataInputStatus.MORE_AVAILABLE;

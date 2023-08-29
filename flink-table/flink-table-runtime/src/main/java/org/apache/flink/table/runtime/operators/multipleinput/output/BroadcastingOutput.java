@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput.output;
 
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -88,6 +89,20 @@ public class BroadcastingOutput implements Output<StreamRecord<RowData>> {
     public void close() {
         for (Output<StreamRecord<RowData>> output : outputs) {
             output.close();
+        }
+    }
+
+    @Override
+    public void emitRecordAttributes(RecordAttributes recordAttributes) {
+        for (Output<StreamRecord<RowData>> output : outputs) {
+            output.emitRecordAttributes(recordAttributes);
+        }
+    }
+
+    @Override
+    public void emitRecordAttributes(OutputTag<?> outputTag, RecordAttributes recordAttributes) {
+        for (Output<StreamRecord<RowData>> output : outputs) {
+            output.emitRecordAttributes(outputTag, recordAttributes);
         }
     }
 }

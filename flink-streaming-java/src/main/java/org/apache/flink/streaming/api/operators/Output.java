@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -55,4 +56,16 @@ public interface Output<T> extends Collector<T> {
     <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record);
 
     void emitLatencyMarker(LatencyMarker latencyMarker);
+
+    /**
+     * Emits a {@link RecordAttributes} from an operator. This element is broadcast to all
+     * downstream operators.
+     */
+    default void emitRecordAttributes(RecordAttributes recordAttributes) {
+        throw new UnsupportedOperationException();
+    }
+
+    default void emitRecordAttributes(OutputTag<?> outputTag, RecordAttributes recordAttributes) {
+        throw new UnsupportedOperationException();
+    }
 }

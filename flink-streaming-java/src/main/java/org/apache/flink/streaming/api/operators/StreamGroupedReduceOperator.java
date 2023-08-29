@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
@@ -41,6 +42,12 @@ public class StreamGroupedReduceOperator<IN>
 
     private final TypeSerializer<IN> serializer;
 
+    private boolean backlog = false;
+
+    private Object lastKey = null;
+
+    private IN lastValue = null;
+
     public StreamGroupedReduceOperator(ReduceFunction<IN> reducer, TypeSerializer<IN> serializer) {
         super(reducer);
         this.serializer = serializer;
@@ -58,13 +65,35 @@ public class StreamGroupedReduceOperator<IN>
         IN value = element.getValue();
         IN currentValue = values.value();
 
+        IN outValue;
         if (currentValue != null) {
             IN reduced = userFunction.reduce(currentValue, value);
             values.update(reduced);
-            output.collect(element.replace(reduced));
+            outValue = reduced;
         } else {
             values.update(value);
-            output.collect(element.replace(value));
+            outValue = value;
         }
+
+        if (!backlog) {
+            output.collect(element.replace(outValue));
+        } else {
+            if (lastKey != null && !lastKey.equals(getCurrentKey())) {
+                output.collect(element.replace(lastValue));
+            }
+            lastValue = outValue;
+            lastKey = getCurrentKey();
+        }
+    }
+
+    @Override
+    public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+        if (backlog && !recordAttributes.isBacklog()) {
+            output.collect(new StreamRecord<>(lastValue));
+            lastValue = null;
+            lastKey = null;
+        }
+        backlog = recordAttributes.isBacklog();
+        super.processRecordAttributes(recordAttributes);
     }
 }

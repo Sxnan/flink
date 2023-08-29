@@ -23,12 +23,14 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.sort.SortingBacklogDataInput;
 import org.apache.flink.streaming.api.operators.sort.SortingDataInput;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
@@ -57,6 +59,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
+import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSortingDuringBacklog;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -112,6 +115,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                         !configuration.isCheckpointingEnabled(),
                         "Checkpointing is not allowed with sorted inputs.");
                 input = wrapWithSorted(input);
+            } else if (requiresSortingDuringBacklog(inputConfig)) {
+                input = wrapWithBacklogSorted(input);
             }
 
             getEnvironment()
@@ -152,6 +157,26 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 this,
                 getExecutionConfig());
+    }
+
+    private StreamTaskInput<IN> wrapWithBacklogSorted(StreamTaskInput<IN> input) {
+        ClassLoader userCodeClassLoader = getUserCodeClassLoader();
+        return new SortingBacklogDataInput<>(
+                input,
+                configuration.getTypeSerializerIn(input.getInputIndex(), userCodeClassLoader),
+                configuration.getStateKeySerializer(userCodeClassLoader),
+                configuration.getStatePartitioner(input.getInputIndex(), userCodeClassLoader),
+                getEnvironment().getMemoryManager(),
+                getEnvironment().getIOManager(),
+                getExecutionConfig().isObjectReuseEnabled(),
+                configuration.getManagedMemoryFractionOperatorUseCaseOfSlot(
+                        ManagedMemoryUseCase.OPERATOR,
+                        getEnvironment().getTaskConfiguration(),
+                        userCodeClassLoader),
+                getEnvironment().getTaskManagerInfo().getConfiguration(),
+                this,
+                getExecutionConfig(),
+                getCanEmitBatchOfRecords());
     }
 
     @SuppressWarnings("unchecked")
@@ -251,6 +276,11 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
             operator.processLatencyMarker(latencyMarker);
+        }
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+            operator.processRecordAttributes(recordAttributes);
         }
     }
 }

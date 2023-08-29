@@ -34,9 +34,12 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
+import org.apache.flink.runtime.event.RecordAttributes;
+import org.apache.flink.runtime.event.RecordAttributesBuilder;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
+import org.apache.flink.runtime.operators.coordination.IsBacklogEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
@@ -56,10 +59,12 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.MultipleFuturesAvailabilityHelper;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -68,6 +73,7 @@ import org.apache.flink.util.function.FunctionWithException;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -79,6 +85,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.configuration.PipelineOptions.ALLOW_UNALIGNED_SOURCE_SPLITS;
+import static org.apache.flink.configuration.PipelineOptions.BACKLOG_WATERMARK_LAG_THRESHOLD;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -435,6 +442,16 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             watermarkAlignmentParams.getUpdateInterval(),
                             watermarkAlignmentParams.getUpdateInterval());
                 }
+                final Duration backlogWatermarkThreshold =
+                        configuration.get(BACKLOG_WATERMARK_LAG_THRESHOLD);
+                if (backlogWatermarkThreshold != null) {
+                    if (backlogWatermarkThreshold.toMillis() == 0) {
+                        throw new RuntimeException(
+                                String.format(
+                                        "%s cannot be 0.", BACKLOG_WATERMARK_LAG_THRESHOLD.key()));
+                    }
+                    output = new WatermarkLagAwareDataOutput<>(output, backlogWatermarkThreshold);
+                }
                 initializeMainOutput(output);
                 return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
             case SOURCE_STOPPED:
@@ -569,6 +586,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             sourceReader.handleSourceEvents(((SourceEventWrapper) event).getSourceEvent());
         } else if (event instanceof NoMoreSplitsEvent) {
             sourceReader.notifyNoMoreSplits();
+        } else if (event instanceof IsBacklogEvent) {
+            output.emitRecordAttributes(
+                    new RecordAttributesBuilder(Collections.emptyList())
+                            .setBacklog(((IsBacklogEvent) event).isBacklog())
+                            .build());
         } else {
             throw new IllegalStateException("Received unexpected operator event " + event);
         }
@@ -727,6 +749,56 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
         public void forceStop() {
             forcedStopFuture.complete(null);
+        }
+    }
+
+    private static class WatermarkLagAwareDataOutput<T> implements DataOutput<T> {
+
+        private final DataOutput<T> innerDataOutput;
+        private final Duration watermarkLagThreshold;
+
+        public WatermarkLagAwareDataOutput(
+                DataOutput<T> innerDataOutput, Duration watermarkLagThreshold) {
+            this.innerDataOutput = innerDataOutput;
+            this.watermarkLagThreshold = watermarkLagThreshold;
+        }
+
+        @Override
+        public void emitRecord(StreamRecord<T> streamRecord) throws Exception {
+            innerDataOutput.emitRecord(streamRecord);
+        }
+
+        @Override
+        public void emitWatermark(Watermark watermark) throws Exception {
+            emitRecordAttributes(
+                    System.currentTimeMillis() - watermark.getTimestamp()
+                            > watermarkLagThreshold.toMillis());
+            innerDataOutput.emitWatermark(watermark);
+        }
+
+        @Override
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            if (watermarkStatus == WatermarkStatus.IDLE) {
+                emitRecordAttributes(false);
+            }
+            innerDataOutput.emitWatermarkStatus(watermarkStatus);
+        }
+
+        @Override
+        public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+            innerDataOutput.emitLatencyMarker(latencyMarker);
+        }
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+            innerDataOutput.emitRecordAttributes(recordAttributes);
+        }
+
+        private void emitRecordAttributes(boolean backlog) throws Exception {
+            innerDataOutput.emitRecordAttributes(
+                    new RecordAttributesBuilder(Collections.emptyList())
+                            .setBacklog(backlog)
+                            .build());
         }
     }
 }

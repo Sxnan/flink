@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -101,6 +102,20 @@ class BroadcastingOutputCollector<T> implements WatermarkGaugeExposingOutput<Str
     public void close() {
         for (Output<StreamRecord<T>> output : outputs) {
             output.close();
+        }
+    }
+
+    @Override
+    public void emitRecordAttributes(RecordAttributes recordAttributes) {
+        for (OutputWithChainingCheck<StreamRecord<T>> output : outputs) {
+            output.emitRecordAttributes(recordAttributes);
+        }
+    }
+
+    @Override
+    public void emitRecordAttributes(OutputTag<?> outputTag, RecordAttributes recordAttributes) {
+        for (OutputWithChainingCheck<StreamRecord<T>> output : outputs) {
+            output.emitRecordAttributes(outputTag, recordAttributes);
         }
     }
 }

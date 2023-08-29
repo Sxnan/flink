@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
+import org.apache.flink.runtime.event.RecordAttributes;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -312,6 +313,11 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {
             output.emitLatencyMarker(latencyMarker);
+        }
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) {
+            output.emitRecordAttributes(recordAttributes);
         }
 
         @Override

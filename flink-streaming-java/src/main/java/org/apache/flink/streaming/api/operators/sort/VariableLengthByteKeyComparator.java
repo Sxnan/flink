@@ -35,7 +35,7 @@ import java.util.Arrays;
  * <p>It assumes keys are of a variable length and thus expects the length of the record to be
  * serialized.
  */
-final class VariableLengthByteKeyComparator<IN>
+public final class VariableLengthByteKeyComparator<IN>
         extends TypeComparator<Tuple2<byte[], StreamRecord<IN>>> {
     private byte[] keyReference;
     private long timestampReference;
