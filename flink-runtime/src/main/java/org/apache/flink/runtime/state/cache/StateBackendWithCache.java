@@ -30,8 +30,7 @@ public class StateBackendWithCache implements ConfigurableStateBackend {
     private final StateBackend stateBackendForCache;
     private final int keySize;
 
-    public StateBackendWithCache(
-            StateBackend stateBackend, int keySize) {
+    public StateBackendWithCache(StateBackend stateBackend, int keySize) {
         this.stateBackend = stateBackend;
         this.stateBackendForCache = new HashMapStateBackend();
         this.keySize = keySize;
@@ -98,6 +97,69 @@ public class StateBackendWithCache implements ConfigurableStateBackend {
     }
 
     @Override
+    public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry,
+            double managedMemoryFraction)
+            throws Exception {
+
+        Collection<KeyedStateHandleWithCache> stateHandlesWithCache = new ArrayList<>();
+        for (KeyedStateHandle handle : stateHandles) {
+            if (handle == null) {
+                continue;
+            }
+            if (!(handle instanceof KeyedStateHandleWithCache)) {
+                throw new UnsupportedOperationException(String.valueOf(handle.getClass()));
+            }
+            stateHandlesWithCache.add((KeyedStateHandleWithCache) handle);
+        }
+
+        return new KeyedStateBackendWithCache<>(
+                stateBackend.createKeyedStateBackend(
+                        env,
+                        jobID,
+                        operatorIdentifier,
+                        keySerializer,
+                        numberOfKeyGroups,
+                        keyGroupRange,
+                        kvStateRegistry,
+                        ttlTimeProvider,
+                        metricGroup,
+                        stateHandlesWithCache.stream()
+                                .map(KeyedStateHandleWithCache::getHandle)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toList()),
+                        cancelStreamRegistry,
+                        managedMemoryFraction),
+                stateBackendForCache.createKeyedStateBackend(
+                        env,
+                        jobID,
+                        operatorIdentifier,
+                        keySerializer,
+                        numberOfKeyGroups,
+                        keyGroupRange,
+                        kvStateRegistry,
+                        ttlTimeProvider,
+                        metricGroup,
+                        stateHandlesWithCache.stream()
+                                .map(KeyedStateHandleWithCache::getHandleForCache)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toList()),
+                        cancelStreamRegistry,
+                        managedMemoryFraction),
+                keySize);
+    }
+
+    @Override
     public OperatorStateBackend createOperatorStateBackend(
             Environment env,
             String operatorIdentifier,
@@ -121,7 +183,6 @@ public class StateBackendWithCache implements ConfigurableStateBackend {
             throw new UnsupportedOperationException();
         }
         return new StateBackendWithCache(
-                ((ConfigurableStateBackend) stateBackend).configure(config, classLoader),
-                keySize);
+                ((ConfigurableStateBackend) stateBackend).configure(config, classLoader), keySize);
     }
 }

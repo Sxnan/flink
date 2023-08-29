@@ -35,14 +35,14 @@ import java.util.Arrays;
  * <p>It assumes keys are always of a fixed length and thus the length of the record is not
  * serialized.
  */
-final class FixedLengthByteKeyComparator<IN>
+public final class FixedLengthByteKeyComparator<IN>
         extends TypeComparator<Tuple2<byte[], StreamRecord<IN>>> {
     static final int TIMESTAMP_BYTE_SIZE = 8;
     private final int keyLength;
     private byte[] keyReference;
     private long timestampReference;
 
-    FixedLengthByteKeyComparator(int keyLength) {
+    public FixedLengthByteKeyComparator(int keyLength) {
         this.keyLength = keyLength;
     }
 

@@ -660,7 +660,8 @@ public abstract class AbstractStreamOperator<OUT>
 
     public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
         lastRecordAttributes1 = recordAttributes;
-        if (timeServiceManager != null) {
+        if (timeServiceManager != null
+                && timeServiceManager instanceof InternalBacklogAwareTimerServiceManagerImpl) {
             ((InternalBacklogAwareTimerServiceManagerImpl<?>) timeServiceManager)
                     .setBacklog(recordAttributes.isBacklog());
         }
@@ -668,13 +669,13 @@ public abstract class AbstractStreamOperator<OUT>
                 new RecordAttributesBuilder(Collections.singletonList(recordAttributes)).build());
     }
 
-    public void processRecordAttributes1(RecordAttributes recordAttributes) {
+    public void processRecordAttributes1(RecordAttributes recordAttributes) throws Exception {
         lastRecordAttributes1 = recordAttributes;
         List<RecordAttributes> lastRecordAttributes = getTwoInputsLastRecordAttributes();
         output.emitRecordAttributes(new RecordAttributesBuilder(lastRecordAttributes).build());
     }
 
-    public void processRecordAttributes2(RecordAttributes recordAttributes) {
+    public void processRecordAttributes2(RecordAttributes recordAttributes) throws Exception {
         lastRecordAttributes2 = recordAttributes;
         List<RecordAttributes> lastRecordAttributes = getTwoInputsLastRecordAttributes();
         output.emitRecordAttributes(new RecordAttributesBuilder(lastRecordAttributes).build());

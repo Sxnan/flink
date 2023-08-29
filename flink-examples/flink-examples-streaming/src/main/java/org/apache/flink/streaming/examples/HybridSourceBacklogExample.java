@@ -30,6 +30,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.time.Duration;
 
+import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
+import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND_CACHE_SIZE;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG;
 
 /** HybridSourceBacklogExample. */
@@ -37,9 +39,11 @@ public class HybridSourceBacklogExample {
     public static void main(String[] args) throws Exception {
         final Configuration config = new Configuration();
         config.set(CHECKPOINTING_INTERVAL_DURING_BACKLOG, Duration.ZERO);
+        config.set(STATE_BACKEND, "rocksdb");
+        config.set(STATE_BACKEND_CACHE_SIZE, 1);
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(config);
-        env.setParallelism(2);
+        env.setParallelism(1);
 
         final DataGeneratorSource<Tuple3<Integer, Long, Long>> historicalData =
                 new DataGeneratorSource<>(

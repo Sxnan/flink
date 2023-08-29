@@ -115,6 +115,12 @@ public class StreamConfig implements Serializable {
     private static final String TIME_CHARACTERISTIC = "timechar";
 
     private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
+
+    private static final ConfigOption<Boolean> CHECKPOINT_INTERVAL_DURING_BACKLOG_SPECIFIED =
+            ConfigOptions.key("checkpointIntervalDuringBacklogSpecified")
+                    .booleanType()
+                    .defaultValue(false);
+
     private static final ConfigOption<Boolean> STATE_BACKEND_USE_MANAGED_MEMORY =
             ConfigOptions.key("statebackend.useManagedMemory")
                     .booleanType()
@@ -549,6 +555,17 @@ public class StreamConfig implements Serializable {
 
     public Duration getCheckpointIntervalDuringBacklog() {
         return config.get(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG);
+    }
+
+    public void setCheckpointIntervalDuringBacklogSpecified(
+            boolean checkpointIntervalDuringBacklogSpecified) {
+        config.set(
+                CHECKPOINT_INTERVAL_DURING_BACKLOG_SPECIFIED,
+                checkpointIntervalDuringBacklogSpecified);
+    }
+
+    public boolean isCheckpointIntervalDuringBacklogSpecified() {
+        return config.getBoolean(CHECKPOINT_INTERVAL_DURING_BACKLOG_SPECIFIED);
     }
 
     /**

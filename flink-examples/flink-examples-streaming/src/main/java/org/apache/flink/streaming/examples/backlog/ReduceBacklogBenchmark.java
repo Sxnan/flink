@@ -15,9 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples;
+package org.apache.flink.streaming.examples.backlog;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
@@ -26,35 +28,60 @@ import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 
 import java.time.Duration;
 
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
+import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND_CACHE_SIZE;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG;
 
 /** HybridSourceBacklogExample. */
-public class HybridSourceBacklogWindowExample {
+public class ReduceBacklogBenchmark {
     public static void main(String[] args) throws Exception {
+        int numKeys = Integer.parseInt(args[0]);
+        long numBacklogRecords = Long.parseLong(args[1]);
+        long numRealTimeRecords = Long.parseLong(args[2]);
+        boolean enableBacklog = Boolean.parseBoolean(args[3]);
+        boolean useBatch = Boolean.parseBoolean(args[4]);
+        int numRuns = Integer.parseInt(args[5]);
+
+        for (int i = 0; i < numRuns; ++i) {
+            runBenchmark(numKeys, numBacklogRecords, numRealTimeRecords, enableBacklog, useBatch);
+        }
+    }
+
+    private static void runBenchmark(
+            int numKeys,
+            long numBacklogRecords,
+            long numRealTimeRecords,
+            boolean enableBacklog,
+            boolean useBatch)
+            throws Exception {
         final Configuration config = new Configuration();
-        config.set(CHECKPOINTING_INTERVAL_DURING_BACKLOG, Duration.ZERO);
         config.set(STATE_BACKEND, "rocksdb");
-        //        config.set(STATE_BACKEND_CACHE_SIZE, 1);
+        if (useBatch) {
+            config.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        } else if (enableBacklog) {
+            config.set(CHECKPOINTING_INTERVAL_DURING_BACKLOG, Duration.ZERO);
+            config.set(STATE_BACKEND_CACHE_SIZE, 1);
+        }
+
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(config);
-        env.setParallelism(2);
+
+        env.setParallelism(1);
 
         final DataGeneratorSource<Tuple3<Integer, Long, Long>> historicalData =
                 new DataGeneratorSource<>(
                         new GeneratorFunction<Long, Tuple3<Integer, Long, Long>>() {
                             @Override
                             public Tuple3<Integer, Long, Long> map(Long value) throws Exception {
-                                Thread.sleep(500);
-                                return new Tuple3<>(value.intValue() % 2, value / 2 * 1000, 1L);
+                                return new Tuple3<>(value.intValue() % numKeys, value, 1L);
                             }
                         },
-                        10,
+                        numBacklogRecords,
                         Types.TUPLE(Types.INT, Types.LONG));
 
         final DataGeneratorSource<Tuple3<Integer, Long, Long>> realTimeData =
@@ -63,17 +90,16 @@ public class HybridSourceBacklogWindowExample {
 
                             @Override
                             public Tuple3<Integer, Long, Long> map(Long value) throws Exception {
-                                Thread.sleep(500);
                                 return new Tuple3<>(
-                                        value.intValue() % 2, (value + 10) / 2 * 1000, 1L);
+                                        value.intValue() % numKeys, value + numBacklogRecords, 1L);
                             }
                         },
-                        1000,
+                        numRealTimeRecords,
                         Types.TUPLE(Types.INT, Types.LONG));
 
         final HybridSource<Tuple3<Integer, Long, Long>> source =
                 HybridSource.builder(historicalData).addSource(realTimeData).build();
-        final SingleOutputStreamOperator<Tuple3<Integer, Long, Long>> summed =
+        final SingleOutputStreamOperator<Tuple3<Integer, Long, Long>> reduced =
                 env.fromSource(
                                 source,
                                 WatermarkStrategy
@@ -82,9 +108,27 @@ public class HybridSourceBacklogWindowExample {
                                 "source")
                         .returns(Types.TUPLE(Types.INT, Types.LONG, Types.LONG))
                         .keyBy(record -> record.f0)
-                        .window(TumblingEventTimeWindows.of(Time.seconds(2)))
-                        .sum(2);
-        summed.print();
-        env.execute();
+                        .reduce(
+                                (ReduceFunction<Tuple3<Integer, Long, Long>>)
+                                        (value1, value2) ->
+                                                new Tuple3<>(
+                                                        value1.f0,
+                                                        Math.max(value1.f1, value2.f1),
+                                                        value1.f2 + value2.f2));
+        reduced.addSink(new DiscardingSink<>());
+
+        long start = System.currentTimeMillis();
+        env.execute("Flink Benchmark Job");
+        double totalTime = (System.currentTimeMillis() - start) / 1000.0;
+
+        System.out.println(
+                "key num: "
+                        + numKeys
+                        + " backlog count: "
+                        + numBacklogRecords
+                        + " realtime count: "
+                        + numRealTimeRecords
+                        + " time: "
+                        + totalTime);
     }
 }

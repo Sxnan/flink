@@ -1127,6 +1127,13 @@ public class StreamingJobGraphGenerator {
         config.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
         config.setCheckpointIntervalDuringBacklog(
                 checkpointCfg.getCheckpointIntervalDuringBacklog());
+        config.setCheckpointIntervalDuringBacklogSpecified(
+                checkpointCfg
+                                .toConfiguration()
+                                .get(
+                                        ExecutionCheckpointingOptions
+                                                .CHECKPOINTING_INTERVAL_DURING_BACKLOG)
+                        != null);
 
         for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
             config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);
