@@ -30,9 +30,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@code StatusWatermarkValve} embodies the logic of how {@link Watermark} and {@link
- * WatermarkStatus} are propagated to downstream outputs, given a set of one or multiple
- * subpartitions that continuously receive them. Usages of this class need to define the number of
- * subpartitions that the valve needs to handle, as well as provide a implementation of {@link
+ * WatermarkStatus} are propagated to downstream outputs, given a set of one or multiple input
+ * channels that continuously receive them. Usages of this class need to define the number of input
+ * channels that the valve needs to handle, as well as provide a implementation of {@link
  * DataOutput}, which is called by the valve only when it determines a new watermark or watermark
  * status can be propagated.
  */
@@ -44,10 +44,10 @@ public class StatusWatermarkValve {
     // ------------------------------------------------------------------------
 
     /**
-     * Array of current status of all subpartitions. Changes as watermarks & watermark statuses are
+     * Array of current status of all input channels. Changes as watermarks & watermark statuses are
      * fed into the valve.
      */
-    private final SubpartitionStatus[] subpartitionStatuses;
+    private final InputChannelStatus[] channelStatuses;
 
     /** The last watermark emitted from the valve. */
     private long lastOutputWatermark;
@@ -56,7 +56,7 @@ public class StatusWatermarkValve {
     private WatermarkStatus lastOutputWatermarkStatus;
 
     /** A heap-based priority queue to help find the minimum watermark. */
-    private final HeapPriorityQueue<SubpartitionStatus> alignedSubpartitionStatuses;
+    private final HeapPriorityQueue<InputChannelStatus> alignedChannelStatuses;
 
     /**
      * Returns a new {@code StatusWatermarkValve}.
@@ -65,16 +65,16 @@ public class StatusWatermarkValve {
      */
     public StatusWatermarkValve(int numInputChannels) {
         checkArgument(numInputChannels > 0);
-        this.subpartitionStatuses = new SubpartitionStatus[numInputChannels];
-        this.alignedSubpartitionStatuses =
+        this.channelStatuses = new InputChannelStatus[numInputChannels];
+        this.alignedChannelStatuses =
                 new HeapPriorityQueue<>(
                         (left, right) -> Long.compare(left.watermark, right.watermark),
                         numInputChannels);
         for (int i = 0; i < numInputChannels; i++) {
-            subpartitionStatuses[i] = new SubpartitionStatus();
-            subpartitionStatuses[i].watermark = Long.MIN_VALUE;
-            subpartitionStatuses[i].watermarkStatus = WatermarkStatus.ACTIVE;
-            markWatermarkAligned(subpartitionStatuses[i]);
+            channelStatuses[i] = new InputChannelStatus();
+            channelStatuses[i].watermark = Long.MIN_VALUE;
+            channelStatuses[i].watermarkStatus = WatermarkStatus.ACTIVE;
+            markWatermarkAligned(channelStatuses[i]);
         }
 
         this.lastOutputWatermark = Long.MIN_VALUE;
@@ -92,30 +92,27 @@ public class StatusWatermarkValve {
      */
     public void inputWatermark(Watermark watermark, int channelIndex, DataOutput<?> output)
             throws Exception {
-        int subpartitionStatusIndex = channelIndex;
-
-        // ignore the input watermark if its subpartition, or all subpartitions are idle (i.e.
+        // ignore the input watermark if its input channel, or all input channels are idle (i.e.
         // overall the valve is idle).
         if (lastOutputWatermarkStatus.isActive()
-                && subpartitionStatuses[subpartitionStatusIndex].watermarkStatus.isActive()) {
+                && channelStatuses[channelIndex].watermarkStatus.isActive()) {
             long watermarkMillis = watermark.getTimestamp();
 
-            // if the input watermark's value is less than the last received watermark for its
-            // subpartition, ignore it also.
-            if (watermarkMillis > subpartitionStatuses[subpartitionStatusIndex].watermark) {
-                subpartitionStatuses[subpartitionStatusIndex].watermark = watermarkMillis;
+            // if the input watermark's value is less than the last received watermark for its input
+            // channel, ignore it also.
+            if (watermarkMillis > channelStatuses[channelIndex].watermark) {
+                channelStatuses[channelIndex].watermark = watermarkMillis;
 
-                if (subpartitionStatuses[subpartitionStatusIndex].isWatermarkAligned) {
-                    adjustAlignedSubpartitionStatuses(
-                            subpartitionStatuses[subpartitionStatusIndex]);
+                if (channelStatuses[channelIndex].isWatermarkAligned) {
+                    adjustAlignedChannelStatuses(channelStatuses[channelIndex]);
                 } else if (watermarkMillis >= lastOutputWatermark) {
-                    // previously unaligned subpartitions are now aligned if its watermark has
+                    // previously unaligned input channels are now aligned if its watermark has
                     // caught up
-                    markWatermarkAligned(subpartitionStatuses[subpartitionStatusIndex]);
+                    markWatermarkAligned(channelStatuses[channelIndex]);
                 }
 
-                // now, attempt to find a new min watermark across all aligned subpartitions
-                findAndOutputNewMinWatermarkAcrossAlignedSubpartitions(output);
+                // now, attempt to find a new min watermark across all aligned channels
+                findAndOutputNewMinWatermarkAcrossAlignedChannels(output);
             }
         }
     }
@@ -133,66 +130,58 @@ public class StatusWatermarkValve {
     public void inputWatermarkStatus(
             WatermarkStatus watermarkStatus, int channelIndex, DataOutput<?> output)
             throws Exception {
-        int subpartitionStatusIndex = channelIndex;
-
         // only account for watermark status inputs that will result in a status change for the
-        // subpartition
-        if (watermarkStatus.isIdle()
-                && subpartitionStatuses[subpartitionStatusIndex].watermarkStatus.isActive()) {
-            // handle active -> idle toggle for the subpartition
-            subpartitionStatuses[subpartitionStatusIndex].watermarkStatus = WatermarkStatus.IDLE;
+        // input
+        // channel
+        if (watermarkStatus.isIdle() && channelStatuses[channelIndex].watermarkStatus.isActive()) {
+            // handle active -> idle toggle for the input channel
+            channelStatuses[channelIndex].watermarkStatus = WatermarkStatus.IDLE;
 
-            // the subpartition is now idle, therefore not aligned
-            markWatermarkUnaligned(subpartitionStatuses[subpartitionStatusIndex]);
+            // the channel is now idle, therefore not aligned
+            markWatermarkUnaligned(channelStatuses[channelIndex]);
 
-            // if all subpartitions of the valve are now idle, we need to output an idle stream
+            // if all input channels of the valve are now idle, we need to output an idle stream
             // status from the valve (this also marks the valve as idle)
-            if (!SubpartitionStatus.hasActiveSubpartitions(subpartitionStatuses)) {
+            if (!InputChannelStatus.hasActiveChannels(channelStatuses)) {
 
-                // now that all subpartitions are idle and no subpartitions will continue to advance
-                // its
+                // now that all input channels are idle and no channels will continue to advance its
                 // watermark,
-                // we should "flush" all watermarks across all subpartitions; effectively, this
-                // means
+                // we should "flush" all watermarks across all channels; effectively, this means
                 // emitting
-                // the max watermark across all subpartitions as the new watermark. Also, since we
+                // the max watermark across all channels as the new watermark. Also, since we
                 // already try to advance
-                // the min watermark as subpartitions individually become IDLE, here we only need to
+                // the min watermark as channels individually become IDLE, here we only need to
                 // perform the flush
-                // if the watermark of the last active subpartition that just became idle is the
-                // current
+                // if the watermark of the last active channel that just became idle is the current
                 // min watermark.
-                if (subpartitionStatuses[subpartitionStatusIndex].watermark
-                        == lastOutputWatermark) {
-                    findAndOutputMaxWatermarkAcrossAllSubpartitions(output);
+                if (channelStatuses[channelIndex].watermark == lastOutputWatermark) {
+                    findAndOutputMaxWatermarkAcrossAllChannels(output);
                 }
 
                 lastOutputWatermarkStatus = WatermarkStatus.IDLE;
                 output.emitWatermarkStatus(lastOutputWatermarkStatus);
-            } else if (subpartitionStatuses[subpartitionStatusIndex].watermark
-                    == lastOutputWatermark) {
-                // if the watermark of the subpartition that just became idle equals the last output
+            } else if (channelStatuses[channelIndex].watermark == lastOutputWatermark) {
+                // if the watermark of the channel that just became idle equals the last output
                 // watermark (the previous overall min watermark), we may be able to find a new
-                // min watermark from the remaining aligned subpartitions
-                findAndOutputNewMinWatermarkAcrossAlignedSubpartitions(output);
+                // min watermark from the remaining aligned channels
+                findAndOutputNewMinWatermarkAcrossAlignedChannels(output);
             }
         } else if (watermarkStatus.isActive()
-                && subpartitionStatuses[subpartitionStatusIndex].watermarkStatus.isIdle()) {
-            // handle idle -> active toggle for the subpartition
-            subpartitionStatuses[subpartitionStatusIndex].watermarkStatus = WatermarkStatus.ACTIVE;
+                && channelStatuses[channelIndex].watermarkStatus.isIdle()) {
+            // handle idle -> active toggle for the input channel
+            channelStatuses[channelIndex].watermarkStatus = WatermarkStatus.ACTIVE;
 
-            // if the last watermark of the subpartition, before it was marked idle, is still
+            // if the last watermark of the input channel, before it was marked idle, is still
             // larger than
-            // the overall last output watermark of the valve, then we can set the subpartition to
-            // be
+            // the overall last output watermark of the valve, then we can set the channel to be
             // aligned already.
-            if (subpartitionStatuses[subpartitionStatusIndex].watermark >= lastOutputWatermark) {
-                markWatermarkAligned(subpartitionStatuses[subpartitionStatusIndex]);
+            if (channelStatuses[channelIndex].watermark >= lastOutputWatermark) {
+                markWatermarkAligned(channelStatuses[channelIndex]);
             }
 
             // if the valve was previously marked to be idle, mark it as active and output an active
             // stream
-            // status because at least one of the subpartitions is now active
+            // status because at least one of the input channels is now active
             if (lastOutputWatermarkStatus.isIdle()) {
                 lastOutputWatermarkStatus = WatermarkStatus.ACTIVE;
                 output.emitWatermarkStatus(lastOutputWatermarkStatus);
@@ -200,64 +189,60 @@ public class StatusWatermarkValve {
         }
     }
 
-    private void findAndOutputNewMinWatermarkAcrossAlignedSubpartitions(DataOutput<?> output)
+    private void findAndOutputNewMinWatermarkAcrossAlignedChannels(DataOutput<?> output)
             throws Exception {
-        boolean hasAlignedSubpartitions = !alignedSubpartitionStatuses.isEmpty();
+        boolean hasAlignedChannels = !alignedChannelStatuses.isEmpty();
 
         // we acknowledge and output the new overall watermark if it really is aggregated
-        // from some remaining aligned subpartition, and is also larger than the last output
-        // watermark
-        if (hasAlignedSubpartitions
-                && alignedSubpartitionStatuses.peek().watermark > lastOutputWatermark) {
-            lastOutputWatermark = alignedSubpartitionStatuses.peek().watermark;
+        // from some remaining aligned channel, and is also larger than the last output watermark
+        if (hasAlignedChannels && alignedChannelStatuses.peek().watermark > lastOutputWatermark) {
+            lastOutputWatermark = alignedChannelStatuses.peek().watermark;
             output.emitWatermark(new Watermark(lastOutputWatermark));
         }
     }
 
     /**
-     * Mark the {@link SubpartitionStatus} as watermark-aligned and add it to the {@link
-     * #alignedSubpartitionStatuses}.
+     * Mark the {@link InputChannelStatus} as watermark-aligned and add it to the {@link
+     * #alignedChannelStatuses}.
      *
-     * @param subpartitionStatus the subpartition status to be marked
+     * @param inputChannelStatus the input channel status to be marked
      */
-    private void markWatermarkAligned(SubpartitionStatus subpartitionStatus) {
-        if (!subpartitionStatus.isWatermarkAligned) {
-            subpartitionStatus.isWatermarkAligned = true;
-            subpartitionStatus.addTo(alignedSubpartitionStatuses);
+    private void markWatermarkAligned(InputChannelStatus inputChannelStatus) {
+        if (!inputChannelStatus.isWatermarkAligned) {
+            inputChannelStatus.isWatermarkAligned = true;
+            inputChannelStatus.addTo(alignedChannelStatuses);
         }
     }
 
     /**
-     * Mark the {@link SubpartitionStatus} as watermark-unaligned and remove it from the {@link
-     * #alignedSubpartitionStatuses}.
+     * Mark the {@link InputChannelStatus} as watermark-unaligned and remove it from the {@link
+     * #alignedChannelStatuses}.
      *
-     * @param subpartitionStatus the subpartition status to be marked
+     * @param inputChannelStatus the input channel status to be marked
      */
-    private void markWatermarkUnaligned(SubpartitionStatus subpartitionStatus) {
-        if (subpartitionStatus.isWatermarkAligned) {
-            subpartitionStatus.isWatermarkAligned = false;
-            subpartitionStatus.removeFrom(alignedSubpartitionStatuses);
+    private void markWatermarkUnaligned(InputChannelStatus inputChannelStatus) {
+        if (inputChannelStatus.isWatermarkAligned) {
+            inputChannelStatus.isWatermarkAligned = false;
+            inputChannelStatus.removeFrom(alignedChannelStatuses);
         }
     }
 
     /**
-     * Adjust the {@link #alignedSubpartitionStatuses} when an element({@link SubpartitionStatus})
-     * in it was modified. The {@link #alignedSubpartitionStatuses} is a priority queue, when an
-     * element in it was modified, we need to adjust the element's position to ensure its priority
-     * order.
+     * Adjust the {@link #alignedChannelStatuses} when an element({@link InputChannelStatus}) in it
+     * was modified. The {@link #alignedChannelStatuses} is a priority queue, when an element in it
+     * was modified, we need to adjust the element's position to ensure its priority order.
      *
-     * @param subpartitionStatus the modified subpartition status
+     * @param inputChannelStatus the modified input channel status
      */
-    private void adjustAlignedSubpartitionStatuses(SubpartitionStatus subpartitionStatus) {
-        alignedSubpartitionStatuses.adjustModifiedElement(subpartitionStatus);
+    private void adjustAlignedChannelStatuses(InputChannelStatus inputChannelStatus) {
+        alignedChannelStatuses.adjustModifiedElement(inputChannelStatus);
     }
 
-    private void findAndOutputMaxWatermarkAcrossAllSubpartitions(DataOutput<?> output)
-            throws Exception {
+    private void findAndOutputMaxWatermarkAcrossAllChannels(DataOutput<?> output) throws Exception {
         long maxWatermark = Long.MIN_VALUE;
 
-        for (SubpartitionStatus subpartitionStatus : subpartitionStatuses) {
-            maxWatermark = Math.max(subpartitionStatus.watermark, maxWatermark);
+        for (InputChannelStatus channelStatus : channelStatuses) {
+            maxWatermark = Math.max(channelStatus.watermark, maxWatermark);
         }
 
         if (maxWatermark > lastOutputWatermark) {
@@ -267,39 +252,38 @@ public class StatusWatermarkValve {
     }
 
     /**
-     * An {@code SubpartitionStatus} keeps track of an subpartition's last watermark, stream status,
-     * and whether or not the subpartition's current watermark is aligned with the overall watermark
-     * output from the valve.
+     * An {@code InputChannelStatus} keeps track of an input channel's last watermark, stream
+     * status, and whether or not the channel's current watermark is aligned with the overall
+     * watermark output from the valve.
      *
-     * <p>There are 2 situations where a subpartition's watermark is not considered aligned:
+     * <p>There are 2 situations where a channel's watermark is not considered aligned:
      *
      * <ul>
-     *   <li>the current watermark status of the subpartition is idle
-     *   <li>the watermark status has resumed to be active, but the watermark of the subpartition
-     *       hasn't caught up to the last output watermark from the valve yet.
+     *   <li>the current watermark status of the channel is idle
+     *   <li>the watermark status has resumed to be active, but the watermark of the channel hasn't
+     *       caught up to the last output watermark from the valve yet.
      * </ul>
      *
      * <p>NOTE: This class implements {@link HeapPriorityQueueElement} to be managed by {@link
-     * #alignedSubpartitionStatuses} to help find minimum watermark.
+     * #alignedChannelStatuses} to help find minimum watermark.
      */
     @VisibleForTesting
-    protected static class SubpartitionStatus implements HeapPriorityQueueElement {
+    protected static class InputChannelStatus implements HeapPriorityQueueElement {
         protected long watermark;
         protected WatermarkStatus watermarkStatus;
         protected boolean isWatermarkAligned;
 
         /**
-         * This field holds the current physical index of this subpartition status when it is
-         * managed by a {@link HeapPriorityQueue}.
+         * This field holds the current physical index of this channel status when it is managed by
+         * a {@link HeapPriorityQueue}.
          */
         private int heapIndex = HeapPriorityQueueElement.NOT_CONTAINED;
 
         /**
-         * Utility to check if at least one subpartition in a given array of subpartitions is
-         * active.
+         * Utility to check if at least one channel in a given array of input channels is active.
          */
-        private static boolean hasActiveSubpartitions(SubpartitionStatus[] subpartitionStatuses) {
-            for (SubpartitionStatus status : subpartitionStatuses) {
+        private static boolean hasActiveChannels(InputChannelStatus[] channelStatuses) {
+            for (InputChannelStatus status : channelStatuses) {
                 if (status.watermarkStatus.isActive()) {
                     return true;
                 }
@@ -317,25 +301,24 @@ public class StatusWatermarkValve {
             this.heapIndex = newIndex;
         }
 
-        private void removeFrom(HeapPriorityQueue<SubpartitionStatus> queue) {
+        private void removeFrom(HeapPriorityQueue<InputChannelStatus> queue) {
             checkState(heapIndex != HeapPriorityQueueElement.NOT_CONTAINED);
             queue.remove(this);
             setInternalIndex(HeapPriorityQueueElement.NOT_CONTAINED);
         }
 
-        private void addTo(HeapPriorityQueue<SubpartitionStatus> queue) {
+        private void addTo(HeapPriorityQueue<InputChannelStatus> queue) {
             checkState(heapIndex == HeapPriorityQueueElement.NOT_CONTAINED);
             queue.add(this);
         }
     }
 
     @VisibleForTesting
-    protected SubpartitionStatus getSubpartitionStatus(int subpartitionIndex) {
+    protected InputChannelStatus getInputChannelStatus(int channelIndex) {
         Preconditions.checkArgument(
-                subpartitionIndex >= 0 && subpartitionIndex < subpartitionStatuses.length,
-                "Invalid subpartition index. Number of subpartitions: "
-                        + subpartitionStatuses.length);
+                channelIndex >= 0 && channelIndex < channelStatuses.length,
+                "Invalid channel index. Number of input channels: " + channelStatuses.length);
 
-        return subpartitionStatuses[subpartitionIndex];
+        return channelStatuses[channelIndex];
     }
 }
