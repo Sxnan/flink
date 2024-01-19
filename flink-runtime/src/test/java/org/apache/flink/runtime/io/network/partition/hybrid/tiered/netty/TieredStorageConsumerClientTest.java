@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
@@ -51,9 +50,6 @@ class TieredStorageConsumerClientTest {
 
     private static final TieredStorageInputChannelId DEFAULT_INPUT_CHANNEL_ID =
             new TieredStorageInputChannelId(0);
-
-    private static final ResultSubpartitionIndexSet DEFAULT_SUBPARTITION_ID_SET =
-            new ResultSubpartitionIndexSet(0);
 
     @Test
     void testStart() {
@@ -119,7 +115,7 @@ class TieredStorageConsumerClientTest {
                         new TieredStorageConsumerSpec(
                                 DEFAULT_PARTITION_ID,
                                 DEFAULT_INPUT_CHANNEL_ID,
-                                DEFAULT_SUBPARTITION_ID_SET)),
+                                DEFAULT_SUBPARTITION_ID)),
                 new TestingTieredStorageNettyService.Builder().build());
     }
 }

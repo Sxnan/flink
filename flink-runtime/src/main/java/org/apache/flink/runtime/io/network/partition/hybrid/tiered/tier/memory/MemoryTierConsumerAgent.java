@@ -49,15 +49,12 @@ public class MemoryTierConsumerAgent implements TierConsumerAgent {
             TieredStorageNettyService nettyService) {
         for (TieredStorageConsumerSpec tieredStorageConsumerSpec : tieredStorageConsumerSpecs) {
             TieredStoragePartitionId partitionId = tieredStorageConsumerSpec.getPartitionId();
-            for (int subpartitionId : tieredStorageConsumerSpec.getSubpartitionIds().values()) {
-                nettyConnectionReaders
-                        .computeIfAbsent(partitionId, ignore -> new HashMap<>())
-                        .put(
-                                new TieredStorageSubpartitionId(subpartitionId),
-                                nettyService.registerConsumer(
-                                        partitionId,
-                                        new TieredStorageSubpartitionId(subpartitionId)));
-            }
+            nettyConnectionReaders
+                    .computeIfAbsent(partitionId, ignore -> new HashMap<>())
+                    .put(
+                            tieredStorageConsumerSpec.getSubpartitionId(),
+                            nettyService.registerConsumer(
+                                    partitionId, tieredStorageConsumerSpec.getSubpartitionId()));
         }
     }
 

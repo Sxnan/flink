@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
-import org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
@@ -44,9 +43,6 @@ public class NettyConnectionReaderImpl implements NettyConnectionReader {
 
     @Override
     public int peekNextBufferSubpartitionId() throws IOException {
-        if (inputChannelProvider.get() instanceof RecoveredInputChannel) {
-            return -1;
-        }
         return inputChannelProvider.get().peekNextBufferSubpartitionId();
     }
 

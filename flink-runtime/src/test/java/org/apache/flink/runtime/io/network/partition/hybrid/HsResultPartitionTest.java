@@ -174,7 +174,7 @@ class HsResultPartitionTest {
                         dataWritten,
                         subpartition,
                         numBytesWritten,
-                        Buffer.DataType.END_OF_PARTITION);
+                        Buffer.DataType.EVENT_BUFFER);
             }
 
             Tuple2<ResultSubpartitionView, TestingBufferAvailabilityListener>[] viewAndListeners =
