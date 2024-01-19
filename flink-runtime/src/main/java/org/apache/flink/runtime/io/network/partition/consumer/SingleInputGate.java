@@ -366,7 +366,7 @@ public class SingleInputGate extends IndexedInputGate {
     private void internalRequestPartitions() {
         for (InputChannel inputChannel : inputChannels()) {
             try {
-                inputChannel.requestSubpartitions();
+                inputChannel.requestSubpartition();
             } catch (Throwable t) {
                 inputChannel.setError(t);
                 return;
@@ -627,7 +627,7 @@ public class SingleInputGate extends IndexedInputGate {
                     channels[current.getChannelIndex()] = newChannel;
 
                     if (requestedPartitionsFlag) {
-                        newChannel.requestSubpartitions();
+                        newChannel.requestSubpartition();
                     }
 
                     for (TaskEvent event : pendingEvents) {
@@ -658,7 +658,7 @@ public class SingleInputGate extends IndexedInputGate {
                         "{}: Retriggering partition request {}:{}.",
                         owningTaskName,
                         ch.partitionId,
-                        ch.getConsumedSubpartitionIndexSet());
+                        ch.getConsumedSubpartitionIndex());
 
                 if (ch.getClass() == RemoteInputChannel.class) {
                     final RemoteInputChannel rch = (RemoteInputChannel) ch;

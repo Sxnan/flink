@@ -22,12 +22,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
-import org.apache.flink.util.Preconditions;
 
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.function.Consumer;
 
 /** Testing view reader for partition request notifier. */
@@ -46,20 +44,16 @@ public class TestingSubpartitionCreatedViewReader implements NetworkSequenceView
     }
 
     @Override
-    public void notifySubpartitionsCreated(
-            ResultPartition partition, ResultSubpartitionIndexSet subpartitionIndexSet)
+    public void notifySubpartitionCreated(ResultPartition partition, int subPartitionIndex)
             throws IOException {
-        Iterator<Integer> iterator = subpartitionIndexSet.values().iterator();
-        int subpartitionIndex = iterator.next();
-        Preconditions.checkArgument(!iterator.hasNext());
-        notifySubpartitionCreatedConsumer.accept(Tuple2.of(partition, subpartitionIndex));
+        notifySubpartitionCreatedConsumer.accept(Tuple2.of(partition, subPartitionIndex));
     }
 
     @Override
     public void requestSubpartitionViewOrRegisterListener(
             ResultPartitionProvider partitionProvider,
             ResultPartitionID resultPartitionId,
-            ResultSubpartitionIndexSet subPartitionIndexRange)
+            int subPartitionIndex)
             throws IOException {
         throw new UnsupportedOperationException();
     }

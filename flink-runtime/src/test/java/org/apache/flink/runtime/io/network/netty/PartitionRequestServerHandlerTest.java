@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
@@ -82,7 +81,7 @@ class PartitionRequestServerHandlerTest {
         NetworkSequenceViewReader viewReader =
                 new CreditBasedSequenceNumberingViewReader(
                         inputChannelID, 2, partitionRequestQueue);
-        viewReader.notifySubpartitionsCreated(resultPartition, new ResultSubpartitionIndexSet(0));
+        viewReader.notifySubpartitionCreated(resultPartition, 0);
         partitionRequestQueue.notifyReaderCreated(viewReader);
 
         // Write the message to acknowledge all records are processed to server

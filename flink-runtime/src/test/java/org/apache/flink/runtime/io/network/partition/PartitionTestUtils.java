@@ -106,8 +106,7 @@ public enum PartitionTestUtils {
         final ResultPartitionManager partitionManager = new ResultPartitionManager();
         final ResultPartition parent = subpartition.parent;
         partitionManager.registerResultPartition(parent);
-        return partitionManager.createSubpartitionView(
-                parent.partitionId, new ResultSubpartitionIndexSet(0), listener);
+        return partitionManager.createSubpartitionView(parent.partitionId, 0, listener);
     }
 
     static void verifyCreateSubpartitionViewThrowsException(
@@ -115,9 +114,7 @@ public enum PartitionTestUtils {
         assertThatThrownBy(
                         () ->
                                 partitionManager.createSubpartitionView(
-                                        partitionId,
-                                        new ResultSubpartitionIndexSet(0),
-                                        new NoOpBufferAvailablityListener()))
+                                        partitionId, 0, new NoOpBufferAvailablityListener()))
                 .as("Should throw a PartitionNotFoundException.")
                 .isInstanceOf(PartitionNotFoundException.class)
                 .satisfies(

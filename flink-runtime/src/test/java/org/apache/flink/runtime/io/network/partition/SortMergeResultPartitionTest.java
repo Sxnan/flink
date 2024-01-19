@@ -241,9 +241,7 @@ class SortMergeResultPartitionTest {
             SortMergeResultPartition partition, int numSubpartitions) throws Exception {
         ResultSubpartitionView[] views = new ResultSubpartitionView[numSubpartitions];
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
-            views[subpartition] =
-                    partition.createSubpartitionView(
-                            new ResultSubpartitionIndexSet(subpartition), listener);
+            views[subpartition] = partition.createSubpartitionView(subpartition, listener);
         }
         return views;
     }
@@ -262,8 +260,7 @@ class SortMergeResultPartitionTest {
         partition.finish();
         partition.close();
 
-        ResultSubpartitionView view =
-                partition.createSubpartitionView(new ResultSubpartitionIndexSet(0), listener);
+        ResultSubpartitionView view = partition.createSubpartitionView(0, listener);
         ByteBuffer recordRead = ByteBuffer.allocate(bufferSize * numBuffers);
         readData(
                 new ResultSubpartitionView[] {view},
@@ -362,8 +359,7 @@ class SortMergeResultPartitionTest {
         assertThat(partition.getResultFile().getNumRegions()).isEqualTo(3);
         assertThat(checkNotNull(fileChannelManager.getPaths()[0].list()).length).isEqualTo(2);
 
-        ResultSubpartitionView view =
-                partition.createSubpartitionView(new ResultSubpartitionIndexSet(0), listener);
+        ResultSubpartitionView view = partition.createSubpartitionView(0, listener);
         partition.release();
 
         while (!view.isReleased() && partition.getResultFile() != null) {
@@ -401,10 +397,7 @@ class SortMergeResultPartitionTest {
     void testReadUnfinishedPartition() throws Exception {
         BufferPool bufferPool = globalPool.createBufferPool(10, 10);
         SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
-        assertThatThrownBy(
-                        () ->
-                                partition.createSubpartitionView(
-                                        new ResultSubpartitionIndexSet(0), listener))
+        assertThatThrownBy(() -> partition.createSubpartitionView(0, listener))
                 .isInstanceOf(IllegalStateException.class);
         bufferPool.lazyDestroy();
     }
@@ -416,10 +409,7 @@ class SortMergeResultPartitionTest {
         partition.finish();
         partition.release();
 
-        assertThatThrownBy(
-                        () ->
-                                partition.createSubpartitionView(
-                                        new ResultSubpartitionIndexSet(0), listener))
+        assertThatThrownBy(() -> partition.createSubpartitionView(0, listener))
                 .isInstanceOf(IllegalStateException.class);
         bufferPool.lazyDestroy();
     }
@@ -471,9 +461,7 @@ class SortMergeResultPartitionTest {
         Runnable task1 =
                 () -> {
                     try {
-                        ResultSubpartitionView view =
-                                partition.createSubpartitionView(
-                                        new ResultSubpartitionIndexSet(0), listener);
+                        ResultSubpartitionView view = partition.createSubpartitionView(0, listener);
                         BufferPool bufferPool1 =
                                 networkBufferPool.createBufferPool(
                                         numNetworkBuffers / 2, numNetworkBuffers);
@@ -501,9 +489,7 @@ class SortMergeResultPartitionTest {
 
                         SortMergeResultPartition partition2 =
                                 createSortMergedPartition(1, bufferPool2);
-                        ResultSubpartitionView view =
-                                partition.createSubpartitionView(
-                                        new ResultSubpartitionIndexSet(0), listener);
+                        ResultSubpartitionView view = partition.createSubpartitionView(0, listener);
                         readAndEmitAllData(view, partition2);
                     } catch (Exception ignored) {
                     }

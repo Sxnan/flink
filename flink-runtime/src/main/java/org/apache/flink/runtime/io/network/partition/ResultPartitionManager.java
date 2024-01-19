@@ -107,7 +107,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
     @Override
     public ResultSubpartitionView createSubpartitionView(
             ResultPartitionID partitionId,
-            ResultSubpartitionIndexSet subpartitionIndexSet,
+            int subpartitionIndex,
             BufferAvailabilityListener availabilityListener)
             throws IOException {
 
@@ -119,10 +119,10 @@ public class ResultPartitionManager implements ResultPartitionProvider {
                 throw new PartitionNotFoundException(partitionId);
             }
 
-            LOG.debug("Requesting subpartitions {} of {}.", subpartitionIndexSet, partition);
+            LOG.debug("Requesting subpartition {} of {}.", subpartitionIndex, partition);
 
             subpartitionView =
-                    partition.createSubpartitionView(subpartitionIndexSet, availabilityListener);
+                    partition.createSubpartitionView(subpartitionIndex, availabilityListener);
         }
 
         return subpartitionView;
@@ -131,7 +131,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
     @Override
     public Optional<ResultSubpartitionView> createSubpartitionViewOrRegisterListener(
             ResultPartitionID partitionId,
-            ResultSubpartitionIndexSet subpartitionIndexSet,
+            int subpartitionIndex,
             BufferAvailabilityListener availabilityListener,
             PartitionRequestListener partitionRequestListener)
             throws IOException {
@@ -147,11 +147,10 @@ public class ResultPartitionManager implements ResultPartitionProvider {
                 subpartitionView = null;
             } else {
 
-                LOG.debug("Requesting subpartitions {} of {}.", subpartitionIndexSet, partition);
+                LOG.debug("Requesting subpartition {} of {}.", subpartitionIndex, partition);
 
                 subpartitionView =
-                        partition.createSubpartitionView(
-                                subpartitionIndexSet, availabilityListener);
+                        partition.createSubpartitionView(subpartitionIndex, availabilityListener);
             }
         }
 

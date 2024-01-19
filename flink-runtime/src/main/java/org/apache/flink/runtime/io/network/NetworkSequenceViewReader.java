@@ -24,7 +24,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
@@ -48,13 +47,13 @@ public interface NetworkSequenceViewReader {
      *
      * @param partitionProvider the result partition provider
      * @param resultPartitionId the result partition id
-     * @param subpartitionIndexSet the sub partition indexes
+     * @param subPartitionIndex the sub partition index
      * @throws IOException the thrown exception
      */
     void requestSubpartitionViewOrRegisterListener(
             ResultPartitionProvider partitionProvider,
             ResultPartitionID resultPartitionId,
-            ResultSubpartitionIndexSet subpartitionIndexSet)
+            int subPartitionIndex)
             throws IOException;
 
     /**
@@ -63,11 +62,10 @@ public interface NetworkSequenceViewReader {
      * view reader for downstream task.
      *
      * @param partition the result partition
-     * @param subpartitionIndexSet the sub partition indexes
+     * @param subPartitionIndex the sub partition index
      * @throws IOException the thrown exception
      */
-    void notifySubpartitionsCreated(
-            ResultPartition partition, ResultSubpartitionIndexSet subpartitionIndexSet)
+    void notifySubpartitionCreated(ResultPartition partition, int subPartitionIndex)
             throws IOException;
 
     @Nullable

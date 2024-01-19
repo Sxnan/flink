@@ -30,7 +30,6 @@ import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListen
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingBufferAccumulator;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingTierProducerAgent;
@@ -167,8 +166,7 @@ class TieredResultPartitionTest {
         assertThatThrownBy(
                         () ->
                                 resultPartition.createSubpartitionView(
-                                        new ResultSubpartitionIndexSet(0),
-                                        new NoOpBufferAvailablityListener()))
+                                        0, new NoOpBufferAvailablityListener()))
                 .isInstanceOf(IllegalStateException.class);
     }
 

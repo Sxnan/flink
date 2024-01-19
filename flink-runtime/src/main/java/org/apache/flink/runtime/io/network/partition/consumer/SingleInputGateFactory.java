@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
@@ -33,7 +34,6 @@ import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
@@ -154,7 +154,7 @@ public class SingleInputGateFactory {
                         igdd.getConsumedPartitionType(),
                         calculateNumChannels(
                                 igdd.getShuffleDescriptors().length,
-                                igdd.getConsumedSubpartitionIndexRange().size()),
+                                igdd.getConsumedSubpartitionIndexRange()),
                         tieredStorageConfiguration != null);
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
                 createBufferPoolFactory(
@@ -171,8 +171,7 @@ public class SingleInputGateFactory {
         final String owningTaskName = owner.getOwnerName();
         final MetricGroup networkInputGroup = owner.getInputGroup();
 
-        ResultSubpartitionIndexSet subpartitionIndexSet =
-                new ResultSubpartitionIndexSet(igdd.getConsumedSubpartitionIndexRange());
+        IndexRange subpartitionIndexRange = igdd.getConsumedSubpartitionIndexRange();
         SingleInputGate inputGate =
                 new SingleInputGate(
                         owningTaskName,
@@ -180,7 +179,7 @@ public class SingleInputGateFactory {
                         igdd.getConsumedResultId(),
                         igdd.getConsumedPartitionType(),
                         calculateNumChannels(
-                                igdd.getShuffleDescriptors().length, subpartitionIndexSet.size()),
+                                igdd.getShuffleDescriptors().length, subpartitionIndexRange),
                         partitionProducerStateProvider,
                         bufferPoolFactory,
                         bufferDecompressor,
@@ -191,7 +190,7 @@ public class SingleInputGateFactory {
                                 owningTaskName, gateIndex, networkInputGroup.addGroup(gateIndex)));
 
         createInputChannelsAndTieredStorageService(
-                owningTaskName, igdd, inputGate, subpartitionIndexSet, gateBuffersSpec, metrics);
+                owningTaskName, igdd, inputGate, subpartitionIndexRange, gateBuffersSpec, metrics);
         return inputGate;
     }
 
@@ -221,7 +220,7 @@ public class SingleInputGateFactory {
             String owningTaskName,
             InputGateDeploymentDescriptor inputGateDeploymentDescriptor,
             SingleInputGate inputGate,
-            ResultSubpartitionIndexSet subpartitionIndexSet,
+            IndexRange subpartitionIndexRange,
             GateBuffersSpec gateBuffersSpec,
             InputChannelMetrics metrics) {
         ShuffleDescriptor[] shuffleDescriptors =
@@ -230,8 +229,7 @@ public class SingleInputGateFactory {
         // Create the input channels. There is one input channel for each consumed subpartition.
         InputChannel[] inputChannels =
                 new InputChannel
-                        [calculateNumChannels(
-                                shuffleDescriptors.length, subpartitionIndexSet.size())];
+                        [calculateNumChannels(shuffleDescriptors.length, subpartitionIndexRange)];
 
         ChannelStatistics channelStatistics = new ChannelStatistics();
 
@@ -240,14 +238,16 @@ public class SingleInputGateFactory {
         for (ShuffleDescriptor descriptor : shuffleDescriptors) {
             TieredStoragePartitionId partitionId =
                     TieredStorageIdMappingUtils.convertId(descriptor.getResultPartitionID());
-            for (int subpartitionIndex : subpartitionIndexSet.values()) {
+            for (int subpartitionIndex = subpartitionIndexRange.getStartIndex();
+                    subpartitionIndex <= subpartitionIndexRange.getEndIndex();
+                    ++subpartitionIndex) {
                 inputChannels[channelIdx] =
                         createInputChannel(
                                 inputGate,
                                 channelIdx,
                                 gateBuffersSpec.getEffectiveExclusiveBuffersPerChannel(),
                                 descriptor,
-                                new ResultSubpartitionIndexSet(subpartitionIndex),
+                                subpartitionIndex,
                                 channelStatistics,
                                 metrics);
                 if (tieredStorageConfiguration != null) {
@@ -287,7 +287,7 @@ public class SingleInputGateFactory {
             int index,
             int buffersPerChannel,
             ShuffleDescriptor shuffleDescriptor,
-            ResultSubpartitionIndexSet subpartitionIndexSet,
+            int consumedSubpartitionIndex,
             ChannelStatistics channelStatistics,
             InputChannelMetrics metrics) {
         return applyWithShuffleTypeCheck(
@@ -299,7 +299,7 @@ public class SingleInputGateFactory {
                             inputGate,
                             index,
                             unknownShuffleDescriptor.getResultPartitionID(),
-                            subpartitionIndexSet,
+                            consumedSubpartitionIndex,
                             partitionManager,
                             taskEventPublisher,
                             connectionManager,
@@ -315,13 +315,15 @@ public class SingleInputGateFactory {
                                 index,
                                 buffersPerChannel,
                                 nettyShuffleDescriptor,
-                                subpartitionIndexSet,
+                                consumedSubpartitionIndex,
                                 channelStatistics,
                                 metrics));
     }
 
-    private static int calculateNumChannels(int numShuffleDescriptors, int numSubpartitions) {
-        return MathUtils.checkedDownCast(((long) numShuffleDescriptors) * numSubpartitions);
+    private static int calculateNumChannels(
+            int numShuffleDescriptors, IndexRange subpartitionIndexRange) {
+        return MathUtils.checkedDownCast(
+                ((long) numShuffleDescriptors) * subpartitionIndexRange.size());
     }
 
     @VisibleForTesting
@@ -330,7 +332,7 @@ public class SingleInputGateFactory {
             int index,
             int buffersPerChannel,
             NettyShuffleDescriptor inputChannelDescriptor,
-            ResultSubpartitionIndexSet subpartitionIndexSet,
+            int consumedSubpartitionIndex,
             ChannelStatistics channelStatistics,
             InputChannelMetrics metrics) {
         ResultPartitionID partitionId = inputChannelDescriptor.getResultPartitionID();
@@ -341,7 +343,7 @@ public class SingleInputGateFactory {
                     inputGate,
                     index,
                     partitionId,
-                    subpartitionIndexSet,
+                    consumedSubpartitionIndex,
                     partitionManager,
                     taskEventPublisher,
                     partitionRequestInitialBackoff,
@@ -355,7 +357,7 @@ public class SingleInputGateFactory {
                     inputGate,
                     index,
                     partitionId,
-                    subpartitionIndexSet,
+                    consumedSubpartitionIndex,
                     inputChannelDescriptor.getConnectionId(),
                     connectionManager,
                     partitionRequestInitialBackoff,

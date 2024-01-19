@@ -61,7 +61,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -910,10 +909,9 @@ class SingleInputGateTest extends InputGateTestBase {
         for (int i = 0; i < 3; i++) {
             assertThat(
                             getInputChannelsInPartition(gate, partitionIds[i]).stream()
-                                    .map(InputChannel::getConsumedSubpartitionIndexSet)
+                                    .map(InputChannel::getConsumedSubpartitionIndex)
                                     .collect(Collectors.toList()))
-                    .containsExactlyInAnyOrder(
-                            new ResultSubpartitionIndexSet(0), new ResultSubpartitionIndexSet(1));
+                    .containsExactlyInAnyOrder(0, 1);
         }
 
         assertChannelsType(gate, LocalRecoveredInputChannel.class, partitionIds[0]);
@@ -1442,7 +1440,7 @@ class SingleInputGateTest extends InputGateTestBase {
         @Override
         public ResultSubpartitionView createSubpartitionView(
                 ResultPartitionID partitionId,
-                ResultSubpartitionIndexSet subpartitionIndexSet,
+                int subpartitionIndex,
                 BufferAvailabilityListener availabilityListener)
                 throws IOException {
             ++counter;

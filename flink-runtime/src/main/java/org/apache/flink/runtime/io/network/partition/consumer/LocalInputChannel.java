@@ -35,7 +35,6 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
 import org.slf4j.Logger;
@@ -78,7 +77,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
-            ResultSubpartitionIndexSet consumedSubpartitionIndexSet,
+            int consumedSubpartitionIndex,
             ResultPartitionManager partitionManager,
             TaskEventPublisher taskEventPublisher,
             int initialBackoff,
@@ -91,7 +90,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                 inputGate,
                 channelIndex,
                 partitionId,
-                consumedSubpartitionIndexSet,
+                consumedSubpartitionIndex,
                 initialBackoff,
                 maxBackoff,
                 numBytesIn,
@@ -115,7 +114,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     }
 
     @Override
-    protected void requestSubpartitions() throws IOException {
+    protected void requestSubpartition() throws IOException {
 
         boolean retriggerRequest = false;
         boolean notifyDataAvailable = false;
@@ -126,16 +125,16 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
             if (subpartitionView == null) {
                 LOG.debug(
-                        "{}: Requesting LOCAL subpartitions {} of partition {}. {}",
+                        "{}: Requesting LOCAL subpartition {} of partition {}. {}",
                         this,
-                        consumedSubpartitionIndexSet,
+                        consumedSubpartitionIndex,
                         partitionId,
                         channelStatePersister);
 
                 try {
                     ResultSubpartitionView subpartitionView =
                             partitionManager.createSubpartitionView(
-                                    partitionId, consumedSubpartitionIndexSet, this);
+                                    partitionId, consumedSubpartitionIndex, this);
 
                     if (subpartitionView == null) {
                         throw new IOException("Error requesting subpartition.");
@@ -183,7 +182,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                         @Override
                         public void run() {
                             try {
-                                requestSubpartitions();
+                                requestSubpartition();
                             } catch (Throwable t) {
                                 setError(t);
                             }

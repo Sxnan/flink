@@ -23,7 +23,6 @@ import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
@@ -46,6 +45,7 @@ import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServer
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -62,7 +62,7 @@ class ServerTransportErrorHandlingTest {
 
         when(partitionManager.createSubpartitionViewOrRegisterListener(
                         any(ResultPartitionID.class),
-                        any(ResultSubpartitionIndexSet.class),
+                        anyInt(),
                         any(BufferAvailabilityListener.class),
                         any(PartitionRequestListener.class)))
                 .thenAnswer(
@@ -100,10 +100,7 @@ class ServerTransportErrorHandlingTest {
             // Write something to trigger close by server
             ch.writeAndFlush(
                     new NettyMessage.PartitionRequest(
-                            new ResultPartitionID(),
-                            new ResultSubpartitionIndexSet(0),
-                            new InputChannelID(),
-                            Integer.MAX_VALUE));
+                            new ResultPartitionID(), 0, new InputChannelID(), Integer.MAX_VALUE));
 
             // Wait for the notification
             assertThat(sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS))

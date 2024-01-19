@@ -213,7 +213,7 @@ class InputBuffersMetricsTest {
                 extraNetworkBuffersPerGate * inputGates.length
                         + buffersPerChannel * totalNumberOfRemoteChannels;
 
-        remoteInputChannel1.requestSubpartitions();
+        remoteInputChannel1.requestSubpartition();
 
         int backlog = 3;
         int totalRequestedBuffers = buffersPerChannel + backlog;

@@ -23,7 +23,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 
 import org.junit.jupiter.api.Test;
 
@@ -42,7 +41,7 @@ class RecoveredInputChannelTest {
 
     @Test
     void testRequestPartitionsImpossible() {
-        assertThatThrownBy(() -> buildChannel().requestSubpartitions())
+        assertThatThrownBy(() -> buildChannel().requestSubpartition())
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
@@ -67,7 +66,7 @@ class RecoveredInputChannelTest {
                     new SingleInputGateBuilder().build(),
                     0,
                     new ResultPartitionID(),
-                    new ResultSubpartitionIndexSet(0),
+                    0,
                     0,
                     0,
                     new SimpleCounter(),

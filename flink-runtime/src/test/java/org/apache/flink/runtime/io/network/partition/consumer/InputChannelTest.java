@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 
 import org.junit.jupiter.api.Test;
 
@@ -125,7 +124,7 @@ class InputChannelTest {
                     inputGate,
                     channelIndex,
                     partitionId,
-                    new ResultSubpartitionIndexSet(0),
+                    0,
                     initialBackoff,
                     maxBackoff,
                     new SimpleCounter(),
@@ -139,7 +138,7 @@ class InputChannelTest {
         public void acknowledgeAllRecordsProcessed() throws IOException {}
 
         @Override
-        void requestSubpartitions() throws IOException, InterruptedException {}
+        void requestSubpartition() throws IOException, InterruptedException {}
 
         @Override
         public Optional<BufferAndAvailability> getNextBuffer()

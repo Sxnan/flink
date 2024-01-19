@@ -30,7 +30,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -77,7 +76,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
-            ResultSubpartitionIndexSet consumedSubpartitionIndexSet,
+            int consumedSubpartitionIndex,
             int initialBackoff,
             int maxBackoff,
             Counter numBytesIn,
@@ -87,7 +86,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
                 inputGate,
                 channelIndex,
                 partitionId,
-                consumedSubpartitionIndexSet,
+                consumedSubpartitionIndex,
                 initialBackoff,
                 maxBackoff,
                 numBytesIn,
@@ -226,7 +225,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     @Override
-    final void requestSubpartitions() {
+    final void requestSubpartition() {
         throw new UnsupportedOperationException(
                 "RecoveredInputChannel should never request partition.");
     }

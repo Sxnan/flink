@@ -227,7 +227,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @Override
-    protected ResultSubpartitionView createSubpartitionView(
+    public ResultSubpartitionView createSubpartitionView(
             int subpartitionIndex, BufferAvailabilityListener availabilityListener)
             throws IOException {
         checkElementIndex(subpartitionIndex, numSubpartitions, "Subpartition not found.");

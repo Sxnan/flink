@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 
 import java.io.IOException;
@@ -29,16 +28,16 @@ import java.io.IOException;
 public interface PartitionRequestClient {
 
     /**
-     * Requests a range of remote sub partitions.
+     * Requests a remote sub partition.
      *
      * @param partitionId The identifier of result partition to be requested.
-     * @param subpartitionIndexSet The sub partition index range in the requested result partition.
+     * @param subpartitionIndex The sub partition index in the requested result partition.
      * @param inputChannel The remote input channel for requesting the sub partition.
      * @param delayMs The request is scheduled within a delay time.
      */
     void requestSubpartition(
             ResultPartitionID partitionId,
-            ResultSubpartitionIndexSet subpartitionIndexSet,
+            int subpartitionIndex,
             RemoteInputChannel inputChannel,
             int delayMs)
             throws IOException;

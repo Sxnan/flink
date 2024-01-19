@@ -30,7 +30,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.TestingResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
@@ -93,7 +92,7 @@ class PartitionRequestRegistrationTest {
             ch.writeAndFlush(
                             new NettyMessage.PartitionRequest(
                                     resultPartition.getPartitionId(),
-                                    new ResultSubpartitionIndexSet(0),
+                                    0,
                                     new InputChannelID(),
                                     Integer.MAX_VALUE))
                     .await();
@@ -141,7 +140,7 @@ class PartitionRequestRegistrationTest {
             ch.writeAndFlush(
                             new NettyMessage.PartitionRequest(
                                     resultPartition.getPartitionId(),
-                                    new ResultSubpartitionIndexSet(0),
+                                    0,
                                     new InputChannelID(),
                                     Integer.MAX_VALUE))
                     .await();
@@ -174,7 +173,7 @@ class PartitionRequestRegistrationTest {
                         @Override
                         public ResultSubpartitionView createSubpartitionView(
                                 ResultPartitionID partitionId,
-                                ResultSubpartitionIndexSet indexSet,
+                                int index,
                                 BufferAvailabilityListener availabilityListener) {
                             return null;
                         }
@@ -183,7 +182,7 @@ class PartitionRequestRegistrationTest {
                         public Optional<ResultSubpartitionView>
                                 createSubpartitionViewOrRegisterListener(
                                         ResultPartitionID partitionId,
-                                        ResultSubpartitionIndexSet indexSet,
+                                        int index,
                                         BufferAvailabilityListener availabilityListener,
                                         PartitionRequestListener partitionRequestListener) {
                             partitionRequestListener.notifyPartitionCreatedTimeout();
@@ -210,7 +209,7 @@ class PartitionRequestRegistrationTest {
             ch.writeAndFlush(
                             new NettyMessage.PartitionRequest(
                                     pid,
-                                    new ResultSubpartitionIndexSet(0),
+                                    0,
                                     remoteInputChannel.getInputChannelId(),
                                     Integer.MAX_VALUE))
                     .await();
@@ -239,7 +238,7 @@ class PartitionRequestRegistrationTest {
                     new SingleInputGateBuilder().setNumberOfChannels(1).build(),
                     0,
                     new ResultPartitionID(),
-                    new ResultSubpartitionIndexSet(0),
+                    0,
                     InputChannelBuilder.STUB_CONNECTION_ID,
                     new TestingConnectionManager(),
                     0,

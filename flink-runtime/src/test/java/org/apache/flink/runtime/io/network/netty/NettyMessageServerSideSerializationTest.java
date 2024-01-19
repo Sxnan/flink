@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.event.task.IntegerTaskEvent;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
@@ -61,18 +60,17 @@ class NettyMessageServerSideSerializationTest {
 
     @Test
     void testPartitionRequest() {
-        int queueIndex = random.nextInt(Integer.MAX_VALUE);
         NettyMessage.PartitionRequest expected =
                 new NettyMessage.PartitionRequest(
                         new ResultPartitionID(),
-                        new ResultSubpartitionIndexSet(queueIndex),
+                        random.nextInt(),
                         new InputChannelID(),
                         random.nextInt());
 
         NettyMessage.PartitionRequest actual = encodeAndDecode(expected, channel);
 
         assertThat(actual.partitionId).isEqualTo(expected.partitionId);
-        assertThat(actual.queueIndexSet).isEqualTo(expected.queueIndexSet);
+        assertThat(actual.queueIndex).isEqualTo(expected.queueIndex);
         assertThat(actual.receiverId).isEqualTo(expected.receiverId);
         assertThat(actual.credit).isEqualTo(expected.credit);
     }

@@ -61,7 +61,7 @@ public class TestingResultPartition extends ResultPartition {
     public void abortCheckpoint(long checkpointId, CheckpointException cause) {}
 
     @Override
-    protected ResultSubpartitionView createSubpartitionView(
+    public ResultSubpartitionView createSubpartitionView(
             int index, BufferAvailabilityListener availabilityListener) throws IOException {
         return createSubpartitionViewFunction.createSubpartitionView(index, availabilityListener);
     }

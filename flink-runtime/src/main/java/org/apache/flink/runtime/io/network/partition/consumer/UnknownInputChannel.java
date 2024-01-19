@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -69,7 +68,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
             SingleInputGate gate,
             int channelIndex,
             ResultPartitionID partitionId,
-            ResultSubpartitionIndexSet consumedSubpartitionIndexSet,
+            int consumedSubpartitionIndex,
             ResultPartitionManager partitionManager,
             TaskEventPublisher taskEventPublisher,
             ConnectionManager connectionManager,
@@ -83,7 +82,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 gate,
                 channelIndex,
                 partitionId,
-                consumedSubpartitionIndexSet,
+                consumedSubpartitionIndex,
                 initialBackoff,
                 maxBackoff,
                 null,
@@ -111,7 +110,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
     }
 
     @Override
-    public void requestSubpartitions() throws IOException {
+    public void requestSubpartition() throws IOException {
         // Nothing to do here
     }
 
@@ -168,7 +167,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 inputGate,
                 getChannelIndex(),
                 partitionId,
-                consumedSubpartitionIndexSet,
+                consumedSubpartitionIndex,
                 checkNotNull(producerAddress),
                 connectionManager,
                 initialBackoff,
@@ -185,7 +184,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 inputGate,
                 getChannelIndex(),
                 resultPartitionID,
-                consumedSubpartitionIndexSet,
+                consumedSubpartitionIndex,
                 partitionManager,
                 taskEventPublisher,
                 initialBackoff,

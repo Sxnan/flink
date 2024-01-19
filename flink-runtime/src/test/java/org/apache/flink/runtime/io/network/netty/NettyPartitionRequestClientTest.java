@@ -115,7 +115,7 @@ class NettyPartitionRequestClientTest {
             inputGate.setupChannels();
 
             // first subpartition request
-            inputChannel.requestSubpartitions();
+            inputChannel.requestSubpartition();
 
             assertThat(channel.isWritable()).isTrue();
             Object readFromOutbound = channel.readOutbound();
@@ -174,7 +174,7 @@ class NettyPartitionRequestClientTest {
             final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
-            inputChannel.requestSubpartitions();
+            inputChannel.requestSubpartition();
 
             // The input channel should only send one partition request
             assertThat(channel.isWritable()).isTrue();
@@ -210,7 +210,7 @@ class NettyPartitionRequestClientTest {
             final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
-            inputChannel.requestSubpartitions();
+            inputChannel.requestSubpartition();
 
             inputChannel.resumeConsumption();
             channel.runPendingTasks();
@@ -248,7 +248,7 @@ class NettyPartitionRequestClientTest {
             BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
-            inputChannel.requestSubpartitions();
+            inputChannel.requestSubpartition();
 
             inputChannel.acknowledgeAllRecordsProcessed();
             channel.runPendingTasks();

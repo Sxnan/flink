@@ -82,7 +82,7 @@ class NettyMessageClientDecoderDelegateTest {
                         inputGate, new TestingPartitionRequestClient(), NUMBER_OF_BUFFER_RESPONSES);
         inputGate.setInputChannels(inputChannel);
         inputGate.setup();
-        inputChannel.requestSubpartitions();
+        inputChannel.requestSubpartition();
         handler.addInputChannel(inputChannel);
         inputChannelId = inputChannel.getInputChannelId();
 

@@ -169,7 +169,7 @@ public class TieredResultPartition extends ResultPartition {
     }
 
     @Override
-    protected ResultSubpartitionView createSubpartitionView(
+    public ResultSubpartitionView createSubpartitionView(
             int subpartitionId, BufferAvailabilityListener availabilityListener)
             throws IOException {
         checkState(!isReleased(), "ResultPartition already released.");
