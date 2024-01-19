@@ -28,7 +28,7 @@ class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
     private final AtomicLong numPriorityEvents = new AtomicLong();
 
     @Override
-    public void notifyDataAvailable(ResultSubpartitionView view) {
+    public void notifyDataAvailable() {
         numNotifications.getAndIncrement();
     }
 

@@ -144,7 +144,7 @@ class SortMergeSubpartitionReader
 
     @Override
     public void notifyDataAvailable() {
-        availabilityListener.notifyDataAvailable(this);
+        availabilityListener.notifyDataAvailable();
     }
 
     @Override

@@ -111,7 +111,7 @@ public class TieredStorageResultSubpartitionView implements ResultSubpartitionVi
         if (segmentId > requiredSegmentId) {
             requiredSegmentId = segmentId;
             stopSendingData = false;
-            availabilityListener.notifyDataAvailable(this);
+            availabilityListener.notifyDataAvailable();
         }
     }
 
@@ -163,7 +163,8 @@ public class TieredStorageResultSubpartitionView implements ResultSubpartitionVi
 
     @Override
     public void notifyDataAvailable() {
-        availabilityListener.notifyDataAvailable(this);
+        throw new UnsupportedOperationException(
+                "Method notifyDataAvailable should never be called.");
     }
 
     @Override

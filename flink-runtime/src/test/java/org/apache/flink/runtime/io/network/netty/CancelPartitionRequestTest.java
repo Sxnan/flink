@@ -152,7 +152,7 @@ class CancelPartitionRequestTest {
                                         BufferAvailabilityListener listener =
                                                 (BufferAvailabilityListener)
                                                         invocationOnMock.getArguments()[2];
-                                        listener.notifyDataAvailable(view);
+                                        listener.notifyDataAvailable();
                                         return Optional.of(view);
                                     });
 

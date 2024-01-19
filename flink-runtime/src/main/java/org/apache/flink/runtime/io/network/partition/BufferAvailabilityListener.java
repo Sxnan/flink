@@ -24,12 +24,8 @@ package org.apache.flink.runtime.io.network.partition;
  */
 public interface BufferAvailabilityListener {
 
-    /**
-     * Called whenever there might be new data available.
-     *
-     * @param view the {@link ResultSubpartitionView} containing available data.
-     */
-    void notifyDataAvailable(ResultSubpartitionView view);
+    /** Called whenever there might be new data available. */
+    void notifyDataAvailable();
 
     /**
      * Called when the first priority event is added to the head of the buffer queue.

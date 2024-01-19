@@ -162,7 +162,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         }
 
         if (notifyDataAvailable) {
-            notifyDataAvailable(this.subpartitionView);
+            notifyDataAvailable();
         }
 
         // Do this outside of the lock scope as this might lead to a
@@ -295,7 +295,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     }
 
     @Override
-    public void notifyDataAvailable(ResultSubpartitionView view) {
+    public void notifyDataAvailable() {
         notifyChannelNonEmpty();
     }
 

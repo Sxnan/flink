@@ -241,7 +241,7 @@ public class InputChannelTestUtils {
         for (BufferConsumer buffer : buffers) {
             subpartition.add(buffer);
         }
-        return subpartition.createReadView((ResultSubpartitionView view) -> {});
+        return subpartition.createReadView(() -> {});
     }
 
     /** Test stub for {@link MemorySegmentProvider}. */

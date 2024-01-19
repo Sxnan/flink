@@ -207,7 +207,7 @@ class FileChannelBoundedDataTest extends BoundedDataTestBase {
         private boolean isAvailable;
 
         @Override
-        public void notifyDataAvailable(ResultSubpartitionView view) {
+        public void notifyDataAvailable() {
             isAvailable = true;
         }
 

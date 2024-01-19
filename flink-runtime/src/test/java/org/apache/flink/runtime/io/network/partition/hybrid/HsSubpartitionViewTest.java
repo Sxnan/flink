@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView.AvailabilityWithBacklog;
 
 import org.junit.jupiter.api.Test;
@@ -241,8 +240,7 @@ class HsSubpartitionViewTest {
     void testNotifyDataAvailableNeedNotify() {
         CompletableFuture<Void> notifyAvailableFuture = new CompletableFuture<>();
         HsSubpartitionConsumer subpartitionView =
-                createSubpartitionView(
-                        (ResultSubpartitionView view) -> notifyAvailableFuture.complete(null));
+                createSubpartitionView(() -> notifyAvailableFuture.complete(null));
 
         TestingHsDataView memoryDataView =
                 TestingHsDataView.builder()
@@ -262,8 +260,7 @@ class HsSubpartitionViewTest {
     void testNotifyDataAvailableNotNeedNotify() {
         CompletableFuture<Void> notifyAvailableFuture = new CompletableFuture<>();
         HsSubpartitionConsumer subpartitionView =
-                createSubpartitionView(
-                        (ResultSubpartitionView view) -> notifyAvailableFuture.complete(null));
+                createSubpartitionView(() -> notifyAvailableFuture.complete(null));
 
         TestingHsDataView memoryDataView =
                 TestingHsDataView.builder()
@@ -284,8 +281,7 @@ class HsSubpartitionViewTest {
     void testGetZeroBacklogNeedNotify() {
         CompletableFuture<Void> notifyAvailableFuture = new CompletableFuture<>();
         HsSubpartitionConsumer subpartitionView =
-                createSubpartitionView(
-                        (ResultSubpartitionView view) -> notifyAvailableFuture.complete(null));
+                createSubpartitionView(() -> notifyAvailableFuture.complete(null));
         subpartitionView.setMemoryDataView(TestingHsDataView.NO_OP);
         subpartitionView.setDiskDataView(
                 TestingHsDataView.builder().setGetBacklogSupplier(() -> 0).build());

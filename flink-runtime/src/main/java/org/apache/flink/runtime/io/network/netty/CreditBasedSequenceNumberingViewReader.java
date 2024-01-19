@@ -125,7 +125,7 @@ class CreditBasedSequenceNumberingViewReader
             }
         }
 
-        notifyDataAvailable(subpartitionView);
+        notifyDataAvailable();
         requestQueue.notifyReaderCreated(this);
     }
 
@@ -141,7 +141,7 @@ class CreditBasedSequenceNumberingViewReader
             }
         }
 
-        notifyDataAvailable(subpartitionView);
+        notifyDataAvailable();
         requestQueue.notifyReaderCreated(this);
     }
 
@@ -291,13 +291,13 @@ class CreditBasedSequenceNumberingViewReader
     }
 
     @Override
-    public void notifyDataAvailable(ResultSubpartitionView view) {
+    public void notifyDataAvailable() {
         requestQueue.notifyReaderNonEmpty(this);
     }
 
     @Override
     public void notifyPriorityEvent(int prioritySequenceNumber) {
-        notifyDataAvailable(this.subpartitionView);
+        notifyDataAvailable();
     }
 
     @Override

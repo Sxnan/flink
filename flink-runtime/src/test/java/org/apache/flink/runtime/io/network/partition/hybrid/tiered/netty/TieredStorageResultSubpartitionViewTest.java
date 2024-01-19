@@ -133,7 +133,7 @@ public class TieredStorageResultSubpartitionViewTest {
 
     private static BufferAvailabilityListener createBufferAvailabilityListener(
             CompletableFuture<Void> notifier) {
-        return (ResultSubpartitionView view) -> notifier.complete(null);
+        return () -> notifier.complete(null);
     }
 
     private static List<NettyPayloadManager> createNettyPayloadManagers() {

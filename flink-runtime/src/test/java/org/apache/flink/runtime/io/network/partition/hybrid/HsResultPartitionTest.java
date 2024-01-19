@@ -725,7 +725,7 @@ class HsResultPartitionTest {
         private int numNotifications;
 
         @Override
-        public synchronized void notifyDataAvailable(ResultSubpartitionView view) {
+        public synchronized void notifyDataAvailable() {
             if (numNotifications == 0) {
                 notifyAll();
             }
