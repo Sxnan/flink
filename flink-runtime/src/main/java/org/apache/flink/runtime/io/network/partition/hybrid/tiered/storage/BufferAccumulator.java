@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
@@ -35,9 +36,10 @@ public interface BufferAccumulator extends AutoCloseable {
      * Setup the accumulator.
      *
      * @param bufferFlusher accepts the accumulated buffers. The first field is the subpartition id,
-     *     the second is the accumulated buffer to flush.
+     *     while the list in the second field contains accumulated buffers in order for that
+     *     subpartition.
      */
-    void setup(BiConsumer<TieredStorageSubpartitionId, Buffer> bufferFlusher);
+    void setup(BiConsumer<TieredStorageSubpartitionId, List<Buffer>> bufferFlusher);
 
     /**
      * Receives the records from tiered store producer, these records will be accumulated and

@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -80,7 +81,7 @@ public class TieredStorageProducerClient {
 
         Arrays.fill(currentSubpartitionSegmentId, -1);
 
-        bufferAccumulator.setup(this::writeAccumulatedBuffer);
+        bufferAccumulator.setup(this::writeAccumulatedBuffers);
     }
 
     /**
@@ -132,6 +133,35 @@ public class TieredStorageProducerClient {
     }
 
     /**
+     * Write the accumulated buffers of this subpartitionId to the appropriate tiers.
+     *
+     * @param subpartitionId the subpartition identifier
+     * @param accumulatedBuffers the accumulated buffers of this subpartition
+     */
+    private void writeAccumulatedBuffers(
+            TieredStorageSubpartitionId subpartitionId, List<Buffer> accumulatedBuffers) {
+        Iterator<Buffer> bufferIterator = accumulatedBuffers.iterator();
+
+        int numWriteBytes = 0;
+        int numWriteBuffers = 0;
+        while (bufferIterator.hasNext()) {
+            Buffer buffer = bufferIterator.next();
+            numWriteBuffers++;
+            numWriteBytes += buffer.readableBytes();
+            try {
+                writeAccumulatedBuffer(subpartitionId, buffer);
+            } catch (IOException ioe) {
+                buffer.recycleBuffer();
+                while (bufferIterator.hasNext()) {
+                    bufferIterator.next().recycleBuffer();
+                }
+                ExceptionUtils.rethrow(ioe);
+            }
+        }
+        updateMetricStatistics(numWriteBuffers, numWriteBytes);
+    }
+
+    /**
      * Write the accumulated buffer of this subpartitionId to an appropriate tier. After the tier is
      * decided, the buffer will be written to the selected tier.
      *
@@ -142,25 +172,22 @@ public class TieredStorageProducerClient {
      * @param accumulatedBuffer one accumulated buffer of this subpartition
      */
     private void writeAccumulatedBuffer(
-            TieredStorageSubpartitionId subpartitionId, Buffer accumulatedBuffer) {
-        try {
-            Buffer compressedBuffer = compressBufferIfPossible(accumulatedBuffer);
-            if (currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()] == null) {
-                chooseStorageTierToStartSegment(subpartitionId);
-            }
-            if (!currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
-                    subpartitionId, compressedBuffer, bufferAccumulator)) {
-                chooseStorageTierToStartSegment(subpartitionId);
-                checkState(
-                        currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
-                                subpartitionId, compressedBuffer, bufferAccumulator),
-                        "Failed to write the first buffer to the new segment");
-            }
-        } catch (IOException ioe) {
-            accumulatedBuffer.recycleBuffer();
-            ExceptionUtils.rethrow(ioe);
+            TieredStorageSubpartitionId subpartitionId, Buffer accumulatedBuffer)
+            throws IOException {
+        Buffer compressedBuffer = compressBufferIfPossible(accumulatedBuffer);
+
+        if (currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()] == null) {
+            chooseStorageTierToStartSegment(subpartitionId);
         }
-        updateMetricStatistics(1, accumulatedBuffer.readableBytes());
+
+        if (!currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
+                subpartitionId, compressedBuffer, bufferAccumulator)) {
+            chooseStorageTierToStartSegment(subpartitionId);
+            checkState(
+                    currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
+                            subpartitionId, compressedBuffer, bufferAccumulator),
+                    "Failed to write the first buffer to the new segment");
+        }
     }
 
     private void chooseStorageTierToStartSegment(TieredStorageSubpartitionId subpartitionId)

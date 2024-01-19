@@ -32,7 +32,9 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -89,7 +91,8 @@ public class SortBufferAccumulator implements BufferAccumulator {
      * construction, requiring the field to be initialized during setup. Therefore, it is necessary
      * to verify whether this field is null before using it.
      */
-    @Nullable private BiConsumer<TieredStorageSubpartitionId, Buffer> accumulatedBufferFlusher;
+    @Nullable
+    private BiConsumer<TieredStorageSubpartitionId, List<Buffer>> accumulatedBufferFlusher;
 
     /** Whether the current {@link DataBuffer} is a broadcast sort buffer. */
     private boolean isBroadcastDataBuffer;
@@ -106,7 +109,7 @@ public class SortBufferAccumulator implements BufferAccumulator {
     }
 
     @Override
-    public void setup(BiConsumer<TieredStorageSubpartitionId, Buffer> bufferFlusher) {
+    public void setup(BiConsumer<TieredStorageSubpartitionId, List<Buffer>> bufferFlusher) {
         this.accumulatedBufferFlusher = bufferFlusher;
     }
 
@@ -245,7 +248,7 @@ public class SortBufferAccumulator implements BufferAccumulator {
                 .accept(
                         new TieredStorageSubpartitionId(
                                 bufferWithSubpartition.getSubpartitionIndex()),
-                        bufferWithSubpartition.getBuffer());
+                        Collections.singletonList(bufferWithSubpartition.getBuffer()));
     }
 
     private Buffer requestBuffer() {
