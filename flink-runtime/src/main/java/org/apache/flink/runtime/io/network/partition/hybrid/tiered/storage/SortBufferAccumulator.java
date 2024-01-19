@@ -27,13 +27,13 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.BufferWithSubpartition;
 import org.apache.flink.runtime.io.network.partition.DataBuffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
-import org.apache.flink.util.function.TriConsumer;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
+import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -70,15 +70,13 @@ public class SortBufferAccumulator implements BufferAccumulator {
     /** The memory manager of the tiered storage. */
     private final TieredStorageMemoryManager memoryManager;
 
-    private final boolean isPartialRecordAllowed;
-
     /**
      * The {@link DataBuffer} is utilized to accumulate the incoming records. Whenever there is a
      * transition from broadcast to non-broadcast (or vice versa), the buffer is flushed to ensure
      * data integrity. Note that this can be null before using it to store records, and this {@link
      * DataBuffer} will be released once flushed.
      */
-    @Nullable private TieredStorageSortBuffer currentDataBuffer;
+    @Nullable private DataBuffer currentDataBuffer;
 
     /**
      * The buffer recycler. Note that this can be null before requesting buffers from the memory
@@ -91,8 +89,7 @@ public class SortBufferAccumulator implements BufferAccumulator {
      * construction, requiring the field to be initialized during setup. Therefore, it is necessary
      * to verify whether this field is null before using it.
      */
-    @Nullable
-    private TriConsumer<TieredStorageSubpartitionId, Buffer, Integer> accumulatedBufferFlusher;
+    @Nullable private BiConsumer<TieredStorageSubpartitionId, Buffer> accumulatedBufferFlusher;
 
     /** Whether the current {@link DataBuffer} is a broadcast sort buffer. */
     private boolean isBroadcastDataBuffer;
@@ -101,17 +98,15 @@ public class SortBufferAccumulator implements BufferAccumulator {
             int numSubpartitions,
             int numBuffers,
             int bufferSizeBytes,
-            TieredStorageMemoryManager memoryManager,
-            boolean isPartialRecordAllowed) {
+            TieredStorageMemoryManager memoryManager) {
         this.numSubpartitions = numSubpartitions;
         this.bufferSizeBytes = bufferSizeBytes;
         this.numBuffers = numBuffers;
         this.memoryManager = memoryManager;
-        this.isPartialRecordAllowed = isPartialRecordAllowed;
     }
 
     @Override
-    public void setup(TriConsumer<TieredStorageSubpartitionId, Buffer, Integer> bufferFlusher) {
+    public void setup(BiConsumer<TieredStorageSubpartitionId, Buffer> bufferFlusher) {
         this.accumulatedBufferFlusher = bufferFlusher;
     }
 
@@ -167,7 +162,7 @@ public class SortBufferAccumulator implements BufferAccumulator {
         currentDataBuffer = createNewDataBuffer();
     }
 
-    private TieredStorageSortBuffer createNewDataBuffer() {
+    private DataBuffer createNewDataBuffer() {
         requestBuffers();
 
         // Use the half of the buffers for writing, and the other half for reading
@@ -177,8 +172,7 @@ public class SortBufferAccumulator implements BufferAccumulator {
                 this::recycleBuffer,
                 numSubpartitions,
                 bufferSizeBytes,
-                numBuffersForSort,
-                isPartialRecordAllowed);
+                numBuffersForSort);
     }
 
     private void requestBuffers() {
@@ -206,12 +200,7 @@ public class SortBufferAccumulator implements BufferAccumulator {
             if (bufferWithSubpartition == null) {
                 break;
             }
-            int numRemainingConsecutiveBuffers =
-                    (int)
-                            Math.ceil(
-                                    ((double) currentDataBuffer.getRecordRemainingBytes())
-                                            / bufferSizeBytes);
-            flushBuffer(bufferWithSubpartition, numRemainingConsecutiveBuffers);
+            flushBuffer(bufferWithSubpartition);
         } while (true);
 
         releaseFreeBuffers();
@@ -233,18 +222,11 @@ public class SortBufferAccumulator implements BufferAccumulator {
             MemorySegment writeBuffer = requestBuffer().getMemorySegment();
             writeBuffer.put(0, record, toCopy);
 
-            int numRemainingConsecutiveBuffers =
-                    (int) Math.ceil(((double) record.remaining()) / bufferSizeBytes);
-            if (numRemainingConsecutiveBuffers == 0) {
-                dataType = Buffer.DataType.DATA_BUFFER_WITH_CLEAR_END;
-            }
-
             flushBuffer(
                     new BufferWithSubpartition(
                             new NetworkBuffer(
                                     writeBuffer, checkNotNull(bufferRecycler), dataType, toCopy),
-                            subpartitionId),
-                    numRemainingConsecutiveBuffers);
+                            subpartitionId));
         }
 
         releaseFreeBuffers();
@@ -258,14 +240,12 @@ public class SortBufferAccumulator implements BufferAccumulator {
         return freeSegment;
     }
 
-    private void flushBuffer(
-            BufferWithSubpartition bufferWithSubpartition, int numRemainingConsecutiveBuffers) {
+    private void flushBuffer(BufferWithSubpartition bufferWithSubpartition) {
         checkNotNull(accumulatedBufferFlusher)
                 .accept(
                         new TieredStorageSubpartitionId(
                                 bufferWithSubpartition.getSubpartitionIndex()),
-                        bufferWithSubpartition.getBuffer(),
-                        numRemainingConsecutiveBuffers);
+                        bufferWithSubpartition.getBuffer());
     }
 
     private Buffer requestBuffer() {

@@ -141,13 +141,10 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
     }
 
     @Override
-    public boolean tryStartNewSegment(
-            TieredStorageSubpartitionId subpartitionId, int segmentId, int minNumBuffers) {
+    public boolean tryStartNewSegment(TieredStorageSubpartitionId subpartitionId, int segmentId) {
         File filePath = dataFilePath.toFile();
         boolean canStartNewSegment =
-                filePath.getUsableSpace()
-                                - (long) Math.max(numBuffersPerSegment, minNumBuffers)
-                                        * bufferSizeBytes
+                filePath.getUsableSpace() - ((long) numBuffersPerSegment) * bufferSizeBytes
                         > (long) (filePath.getTotalSpace() * minReservedDiskSpaceFraction);
         if (canStartNewSegment) {
             firstBufferIndexInSegment
@@ -162,16 +159,10 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
 
     @Override
     public boolean tryWrite(
-            TieredStorageSubpartitionId subpartitionId,
-            Buffer finishedBuffer,
-            Object bufferOwner,
-            int numRemainingConsecutiveBuffers) {
+            TieredStorageSubpartitionId subpartitionId, Buffer finishedBuffer, Object bufferOwner) {
         int subpartitionIndex = subpartitionId.getSubpartitionId();
         if (currentSubpartitionWriteBuffers[subpartitionIndex] != 0
-                && currentSubpartitionWriteBuffers[subpartitionIndex]
-                                + 1
-                                + numRemainingConsecutiveBuffers
-                        > numBuffersPerSegment) {
+                && currentSubpartitionWriteBuffers[subpartitionIndex] + 1 > numBuffersPerSegment) {
             emitEndOfSegmentEvent(subpartitionIndex);
             currentSubpartitionWriteBuffers[subpartitionIndex] = 0;
             return false;
@@ -180,7 +171,7 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
             memoryManager.transferBufferOwnership(bufferOwner, this, finishedBuffer);
         }
         currentSubpartitionWriteBuffers[subpartitionIndex]++;
-        emitBuffer(finishedBuffer, subpartitionIndex, numRemainingConsecutiveBuffers == 0);
+        emitBuffer(finishedBuffer, subpartitionIndex);
         return true;
     }
 
@@ -219,8 +210,8 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
         }
     }
 
-    private void emitBuffer(Buffer finishedBuffer, int subpartition, boolean flush) {
-        diskCacheManager.append(finishedBuffer, subpartition, flush);
+    private void emitBuffer(Buffer finishedBuffer, int subpartition) {
+        diskCacheManager.append(finishedBuffer, subpartition);
     }
 
     private void releaseResources() {

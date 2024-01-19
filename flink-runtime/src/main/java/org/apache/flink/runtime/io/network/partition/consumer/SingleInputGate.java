@@ -925,7 +925,7 @@ public class SingleInputGate extends IndexedInputGate {
             lastBufferStatusMapInTieredStore.put(
                     inputChannel.getChannelIndex(),
                     Tuple2.of(
-                            buffer.getDataType().isPartialRecord(),
+                            buffer.getDataType() == Buffer.DataType.DATA_BUFFER,
                             recoveryMetadata.getFinalBufferSubpartitionId()));
         }
         return Optional.of(bufferAndAvailability.buffer());
@@ -971,7 +971,9 @@ public class SingleInputGate extends IndexedInputGate {
                 }
                 lastBufferStatusMapInTieredStore.put(
                         inputChannel.getChannelIndex(),
-                        Tuple2.of(buffer.get().getDataType().isPartialRecord(), subpartitionId));
+                        Tuple2.of(
+                                buffer.get().getDataType() == Buffer.DataType.DATA_BUFFER,
+                                subpartitionId));
             } else {
                 if (!isLastBufferPartialRecord
                         && inputChannel.getConsumedSubpartitionIndexSet().size() > 1) {

@@ -138,8 +138,7 @@ class TieredStorageSortBufferTest {
                         bufferPool,
                         numSubpartitions,
                         BUFFER_SIZE_BYTES,
-                        numBuffersForSort,
-                        true);
+                        numBuffersForSort);
         MemorySegment memorySegment = segments.poll();
         sortBuffer.finish();
         assertThat(sortBuffer.getNextBuffer(memorySegment)).isNull();
@@ -164,12 +163,7 @@ class TieredStorageSortBufferTest {
         }
         TieredStorageSortBuffer sortBuffer =
                 new TieredStorageSortBuffer(
-                        segments,
-                        bufferPool,
-                        numSubpartitions,
-                        bufferSizeBytes,
-                        numBuffersForSort,
-                        true);
+                        segments, bufferPool, numSubpartitions, bufferSizeBytes, numBuffersForSort);
 
         byte[] bytes = new byte[1];
         random.nextBytes(bytes);
@@ -267,7 +261,7 @@ class TieredStorageSortBufferTest {
             segments.add(bufferPool.requestMemorySegmentBlocking());
         }
         return new TieredStorageSortBuffer(
-                segments, bufferPool, numSubpartitions, BUFFER_SIZE_BYTES, bufferPoolSize, true);
+                segments, bufferPool, numSubpartitions, BUFFER_SIZE_BYTES, bufferPoolSize);
     }
 
     /** Data buffer with its {@link Buffer.DataType}. */

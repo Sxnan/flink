@@ -99,8 +99,7 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
     }
 
     @Override
-    public boolean tryStartNewSegment(
-            TieredStorageSubpartitionId subpartitionId, int segmentId, int minNumBuffers) {
+    public boolean tryStartNewSegment(TieredStorageSubpartitionId subpartitionId, int segmentId) {
         boolean canStartNewSegment =
                 nettyConnectionEstablished[subpartitionId.getSubpartitionId()]
                         // Ensure that a subpartition's memory tier does not excessively use
@@ -110,9 +109,8 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
                                 < subpartitionMaxQueuedBuffers
                         && (memoryManager.getMaxNonReclaimableBuffers(this)
                                         - memoryManager.numOwnerRequestedBuffer(this))
-                                > Math.max(numBuffersPerSegment, minNumBuffers)
-                        && memoryManager.ensureCapacity(
-                                Math.max(numBuffersPerSegment, minNumBuffers));
+                                > numBuffersPerSegment
+                        && memoryManager.ensureCapacity(numBuffersPerSegment);
         if (canStartNewSegment) {
             subpartitionProducerAgents[subpartitionId.getSubpartitionId()].updateSegmentId(
                     segmentId);
@@ -122,16 +120,10 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
 
     @Override
     public boolean tryWrite(
-            TieredStorageSubpartitionId subpartitionId,
-            Buffer finishedBuffer,
-            Object bufferOwner,
-            int numRemainingConsecutiveBuffers) {
+            TieredStorageSubpartitionId subpartitionId, Buffer finishedBuffer, Object bufferOwner) {
         int subpartitionIndex = subpartitionId.getSubpartitionId();
         if (currentSubpartitionWriteBuffers[subpartitionIndex] != 0
-                && currentSubpartitionWriteBuffers[subpartitionIndex]
-                                + 1
-                                + numRemainingConsecutiveBuffers
-                        > numBuffersPerSegment) {
+                && currentSubpartitionWriteBuffers[subpartitionIndex] + 1 > numBuffersPerSegment) {
             appendEndOfSegmentEvent(subpartitionIndex);
             currentSubpartitionWriteBuffers[subpartitionIndex] = 0;
             return false;

@@ -431,9 +431,6 @@ public abstract class NettyMessage {
             Buffer dataBuffer;
             if (dataType.isBuffer()) {
                 dataBuffer = bufferAllocator.allocatePooledNetworkBuffer(receiverId);
-                if (dataBuffer != null) {
-                    dataBuffer.setDataType(dataType);
-                }
             } else {
                 dataBuffer = bufferAllocator.allocateUnPooledNetworkBuffer(size, dataType);
             }

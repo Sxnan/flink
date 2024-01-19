@@ -38,17 +38,13 @@ import static org.apache.flink.util.Preconditions.checkState;
  * When getting buffers, The {@link SortBasedDataBuffer} need not recycle the read target buffer..
  */
 public class TieredStorageSortBuffer extends SortBuffer {
-    private final boolean isPartialRecordAllowed;
-
-    private boolean isLastBufferPartialRecord;
 
     public TieredStorageSortBuffer(
             LinkedList<MemorySegment> freeSegments,
             BufferRecycler bufferRecycler,
             int numSubpartitions,
             int bufferSize,
-            int numGuaranteedBuffers,
-            boolean isPartialRecordAllowed) {
+            int numGuaranteedBuffers) {
         super(
                 freeSegments,
                 bufferRecycler,
@@ -56,8 +52,6 @@ public class TieredStorageSortBuffer extends SortBuffer {
                 bufferSize,
                 numGuaranteedBuffers,
                 null);
-        this.isPartialRecordAllowed = isPartialRecordAllowed;
-        this.isLastBufferPartialRecord = false;
     }
 
     @Override
@@ -105,13 +99,6 @@ public class TieredStorageSortBuffer extends SortBuffer {
                 transitBuffer = MemorySegmentFactory.allocateUnpooledSegment(recordLength);
             }
 
-            if (!isPartialRecordAllowed
-                    && !isLastBufferPartialRecord
-                    && numBytesRead > 0
-                    && numBytesRead + recordLength > transitBuffer.size()) {
-                break;
-            }
-
             // Start reading data from the data buffer
             numBytesRead +=
                     copyRecordOrEvent(
@@ -125,37 +112,22 @@ public class TieredStorageSortBuffer extends SortBuffer {
                 // move to next subpartition if the current subpartition has been finished
                 if (readIndexEntryAddress
                         == lastIndexEntryAddresses[currentReadingSubpartitionId]) {
-                    isLastBufferPartialRecord = false;
                     updateReadSubpartitionAndIndexEntryAddress();
                     break;
                 }
                 readIndexEntryAddress = nextReadIndexEntryAddress;
-                if (isLastBufferPartialRecord) {
-                    isLastBufferPartialRecord = false;
-                    break;
-                }
-            } else {
-                isLastBufferPartialRecord = true;
             }
         } while (numBytesRead < transitBuffer.size() && bufferDataType.isBuffer());
-
-        if (!isPartialRecordAllowed
-                && !isLastBufferPartialRecord
-                && bufferDataType == Buffer.DataType.DATA_BUFFER) {
-            bufferDataType = Buffer.DataType.DATA_BUFFER_WITH_CLEAR_END;
-        }
 
         numTotalBytesRead += numBytesRead;
         return new BufferWithSubpartition(
                 new NetworkBuffer(
                         transitBuffer,
-                        bufferDataType.isBuffer() ? bufferRecycler : FreeingBufferRecycler.INSTANCE,
+                        bufferDataType == Buffer.DataType.DATA_BUFFER
+                                ? bufferRecycler
+                                : FreeingBufferRecycler.INSTANCE,
                         bufferDataType,
                         numBytesRead),
                 currentReadingSubpartitionId);
-    }
-
-    int getRecordRemainingBytes() {
-        return recordRemainingBytes;
     }
 }

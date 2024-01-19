@@ -252,8 +252,7 @@ public class ResultPartitionFactory {
                                         bufferPoolFactory,
                                         channelManager,
                                         batchShuffleReadBufferPool,
-                                        batchShuffleReadIOExecutor,
-                                        isNumberOfPartitionConsumerUndefined);
+                                        batchShuffleReadIOExecutor);
             } else {
                 partition =
                         new HsResultPartition(

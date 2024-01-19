@@ -76,7 +76,7 @@ public class DiskTierProducerAgentTest {
                         partitionFile,
                         new TestingPartitionFileWriter.Builder().build(),
                         new TieredStorageResourceRegistry())) {
-            assertThat(diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0)).isTrue();
+            assertThat(diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isTrue();
         }
     }
 
@@ -90,7 +90,7 @@ public class DiskTierProducerAgentTest {
                         tempFolder.toString(),
                         new TestingPartitionFileWriter.Builder().build(),
                         new TieredStorageResourceRegistry())) {
-            assertThat(diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0)).isFalse();
+            assertThat(diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isFalse();
         }
     }
 
@@ -104,13 +104,12 @@ public class DiskTierProducerAgentTest {
                         tempFolder.toString(),
                         new TestingPartitionFileWriter.Builder().build(),
                         new TieredStorageResourceRegistry())) {
-            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0);
+            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0);
             assertThat(
                             diskTierProducerAgent.tryWrite(
                                     SUBPARTITION_ID,
                                     BufferBuilderTestUtils.buildSomeBuffer(),
-                                    this,
-                                    0))
+                                    this))
                     .isTrue();
         }
     }
@@ -125,20 +124,18 @@ public class DiskTierProducerAgentTest {
                         tempFolder.toString(),
                         new TestingPartitionFileWriter.Builder().build(),
                         new TieredStorageResourceRegistry())) {
-            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0);
+            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0);
             assertThat(
                             diskTierProducerAgent.tryWrite(
                                     SUBPARTITION_ID,
                                     BufferBuilderTestUtils.buildSomeBuffer(),
-                                    this,
-                                    0))
+                                    this))
                     .isTrue();
             assertThat(
                             diskTierProducerAgent.tryWrite(
                                     SUBPARTITION_ID,
                                     BufferBuilderTestUtils.buildSomeBuffer(BUFFER_SIZE_BYTES),
-                                    this,
-                                    0))
+                                    this))
                     .isFalse();
         }
     }
@@ -153,21 +150,19 @@ public class DiskTierProducerAgentTest {
                         tempFolder.toString(),
                         new TestingPartitionFileWriter.Builder().build(),
                         new TieredStorageResourceRegistry())) {
-            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0);
+            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0);
             assertThatThrownBy(
                             () ->
                                     diskTierProducerAgent.tryWrite(
                                             new TieredStorageSubpartitionId(1),
                                             BufferBuilderTestUtils.buildSomeBuffer(),
-                                            this,
-                                            0))
+                                            this))
                     .isInstanceOf(ArrayIndexOutOfBoundsException.class);
             assertThat(
                             diskTierProducerAgent.tryWrite(
                                     SUBPARTITION_ID,
                                     BufferBuilderTestUtils.buildSomeBuffer(),
-                                    this,
-                                    0))
+                                    this))
                     .isTrue();
         }
     }
