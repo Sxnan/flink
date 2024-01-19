@@ -77,7 +77,7 @@ public class MemoryTierConsumerAgent implements TierConsumerAgent {
                     .get(partitionId)
                     .get(subpartitionId)
                     .get()
-                    .readBuffer(subpartitionId.getSubpartitionId(), segmentId);
+                    .readBuffer(segmentId);
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Failed to get next buffer.", e);
         }

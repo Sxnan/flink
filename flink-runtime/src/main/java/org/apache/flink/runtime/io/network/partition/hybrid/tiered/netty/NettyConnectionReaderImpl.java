@@ -23,8 +23,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -35,19 +33,18 @@ public class NettyConnectionReaderImpl implements NettyConnectionReader {
     private final Supplier<InputChannel> inputChannelProvider;
 
     /** The last required segment id. */
-    private final Map<Integer, Integer> lastRequiredSegmentIds = new HashMap<>();
+    private int lastRequiredSegmentId = 0;
 
     public NettyConnectionReaderImpl(Supplier<InputChannel> inputChannelProvider) {
         this.inputChannelProvider = inputChannelProvider;
     }
 
     @Override
-    public Optional<Buffer> readBuffer(int subpartitionId, int segmentId) {
-        if (segmentId > 0L
-                && (segmentId != lastRequiredSegmentIds.getOrDefault(subpartitionId, 0))) {
-            lastRequiredSegmentIds.put(subpartitionId, segmentId);
+    public Optional<Buffer> readBuffer(int segmentId) {
+        if (segmentId > 0L && (segmentId != lastRequiredSegmentId)) {
+            lastRequiredSegmentId = segmentId;
             try {
-                inputChannelProvider.get().notifyRequiredSegmentId(subpartitionId, segmentId);
+                inputChannelProvider.get().notifyRequiredSegmentId(segmentId);
             } catch (IOException e) {
                 ExceptionUtils.rethrow(e, "Failed to notify required segment id");
             }

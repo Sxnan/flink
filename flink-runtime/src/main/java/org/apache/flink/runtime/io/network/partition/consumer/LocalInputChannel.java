@@ -372,9 +372,9 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     }
 
     @Override
-    public void notifyRequiredSegmentId(int subpartitionId, int segmentId) {
+    public void notifyRequiredSegmentId(int segmentId) {
         if (subpartitionView != null) {
-            checkNotNull(subpartitionView).notifyRequiredSegmentId(subpartitionId, segmentId);
+            checkNotNull(subpartitionView).notifyRequiredSegmentId(segmentId);
         }
     }
 
