@@ -217,7 +217,7 @@ class SortMergeSubpartitionReader
     }
 
     @Override
-    public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
         synchronized (lock) {
             boolean isAvailable;
             if (isReleased) {
@@ -225,7 +225,7 @@ class SortMergeSubpartitionReader
             } else if (buffersRead.isEmpty()) {
                 isAvailable = false;
             } else {
-                isAvailable = isCreditAvailable || !buffersRead.peek().isBuffer();
+                isAvailable = numCreditsAvailable > 0 || !buffersRead.peek().isBuffer();
             }
             return new AvailabilityWithBacklog(isAvailable, dataBufferBacklog);
         }

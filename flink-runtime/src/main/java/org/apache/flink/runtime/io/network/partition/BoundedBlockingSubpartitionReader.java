@@ -161,9 +161,9 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
     }
 
     @Override
-    public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
         boolean isAvailable;
-        if (isCreditAvailable) {
+        if (numCreditsAvailable > 0) {
             isAvailable = nextBuffer != null;
         } else {
             isAvailable = nextBuffer != null && !nextBuffer.isBuffer();
