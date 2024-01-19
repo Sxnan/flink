@@ -117,7 +117,7 @@ class DataBufferTest {
             --numDataBuffers;
 
             while (dataBuffer.hasRemaining()) {
-                BufferWithSubpartition buffer = copyIntoSegment(bufferSize, dataBuffer);
+                BufferWithChannel buffer = copyIntoSegment(bufferSize, dataBuffer);
                 if (buffer == null) {
                     break;
                 }
@@ -142,9 +142,9 @@ class DataBufferTest {
                 numSubpartitions, numBytesWritten, numBytesRead, dataWritten, buffersRead);
     }
 
-    private BufferWithSubpartition copyIntoSegment(int bufferSize, DataBuffer dataBuffer) {
+    private BufferWithChannel copyIntoSegment(int bufferSize, DataBuffer dataBuffer) {
         if (useHashBuffer) {
-            BufferWithSubpartition buffer = dataBuffer.getNextBuffer(null);
+            BufferWithChannel buffer = dataBuffer.getNextBuffer(null);
             if (buffer == null || !buffer.getBuffer().isBuffer()) {
                 return buffer;
             }
@@ -153,9 +153,9 @@ class DataBufferTest {
             int numBytes = buffer.getBuffer().readableBytes();
             segment.put(0, buffer.getBuffer().getNioBufferReadable(), numBytes);
             buffer.getBuffer().recycleBuffer();
-            return new BufferWithSubpartition(
+            return new BufferWithChannel(
                     new NetworkBuffer(segment, MemorySegment::free, DataType.DATA_BUFFER, numBytes),
-                    buffer.getSubpartitionIndex());
+                    buffer.getChannelIndex());
         } else {
             MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
             return dataBuffer.getNextBuffer(segment);
@@ -163,10 +163,10 @@ class DataBufferTest {
     }
 
     private void addBufferRead(
-            BufferWithSubpartition buffer, Queue<Buffer>[] buffersRead, int[] numBytesRead) {
-        int subpartition = buffer.getSubpartitionIndex();
-        buffersRead[subpartition].add(buffer.getBuffer());
-        numBytesRead[subpartition] += buffer.getBuffer().readableBytes();
+            BufferWithChannel buffer, Queue<Buffer>[] buffersRead, int[] numBytesRead) {
+        int channel = buffer.getChannelIndex();
+        buffersRead[channel].add(buffer.getBuffer());
+        numBytesRead[channel] += buffer.getBuffer().readableBytes();
     }
 
     public static void checkWriteReadResult(
@@ -215,7 +215,7 @@ class DataBufferTest {
     }
 
     @TestTemplate
-    public void testWriteReadWithEmptySubpartition() throws Exception {
+    void testWriteReadWithEmptyChannel() throws Exception {
         int bufferPoolSize = 10;
         int bufferSize = 1024;
         int numSubpartitions = 5;
@@ -252,15 +252,11 @@ class DataBufferTest {
     }
 
     private void checkReadResult(
-            DataBuffer dataBuffer,
-            ByteBuffer expectedBuffer,
-            int expectedSubpartition,
-            int bufferSize) {
+            DataBuffer dataBuffer, ByteBuffer expectedBuffer, int expectedChannel, int bufferSize) {
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-        BufferWithSubpartition bufferWithSubpartition = dataBuffer.getNextBuffer(segment);
-        assertThat(bufferWithSubpartition.getSubpartitionIndex()).isEqualTo(expectedSubpartition);
-        assertThat(bufferWithSubpartition.getBuffer().getNioBufferReadable())
-                .isEqualTo(expectedBuffer);
+        BufferWithChannel bufferWithChannel = dataBuffer.getNextBuffer(segment);
+        assertThat(bufferWithChannel.getChannelIndex()).isEqualTo(expectedChannel);
+        assertThat(bufferWithChannel.getBuffer().getNioBufferReadable()).isEqualTo(expectedBuffer);
     }
 
     @TestTemplate

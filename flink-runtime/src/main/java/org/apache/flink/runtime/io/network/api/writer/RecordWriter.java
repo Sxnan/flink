@@ -43,8 +43,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * An abstract record-oriented runtime result writer.
  *
- * <p>The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of
- * subpartition selection and serializing records into bytes.
+ * <p>The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of channel
+ * selection and serializing records into bytes.
  *
  * @param <T> the type of the record that can be emitted with this record writer
  */
@@ -58,7 +58,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
     protected final ResultPartitionWriter targetPartition;
 
-    protected final int numberOfSubpartitions;
+    protected final int numberOfChannels;
 
     protected final DataOutputSerializer serializer;
 
@@ -81,7 +81,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
     RecordWriter(ResultPartitionWriter writer, long timeout, String taskName) {
         this.targetPartition = writer;
-        this.numberOfSubpartitions = writer.getNumberOfSubpartitions();
+        this.numberOfChannels = writer.getNumberOfSubpartitions();
 
         this.serializer = new DataOutputSerializer(128);
 
@@ -173,11 +173,11 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
     /** This is used to send regular records. */
     public abstract void emit(T record) throws IOException;
 
-    /** This is used to send LatencyMarks to a random target subpartition. */
+    /** This is used to send LatencyMarks to a random target channel. */
     public void randomEmit(T record) throws IOException {
         checkErroneous();
 
-        int targetSubpartition = rng.nextInt(numberOfSubpartitions);
+        int targetSubpartition = rng.nextInt(numberOfChannels);
         emit(record, targetSubpartition);
     }
 

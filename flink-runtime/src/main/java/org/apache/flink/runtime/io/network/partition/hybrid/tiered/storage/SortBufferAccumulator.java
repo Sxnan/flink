@@ -24,7 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
-import org.apache.flink.runtime.io.network.partition.BufferWithSubpartition;
+import org.apache.flink.runtime.io.network.partition.BufferWithChannel;
 import org.apache.flink.runtime.io.network.partition.DataBuffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
@@ -198,12 +198,11 @@ public class SortBufferAccumulator implements BufferAccumulator {
 
         do {
             MemorySegment freeSegment = getFreeSegment();
-            BufferWithSubpartition bufferWithSubpartition =
-                    currentDataBuffer.getNextBuffer(freeSegment);
-            if (bufferWithSubpartition == null) {
+            BufferWithChannel bufferWithChannel = currentDataBuffer.getNextBuffer(freeSegment);
+            if (bufferWithChannel == null) {
                 break;
             }
-            flushBuffer(bufferWithSubpartition);
+            flushBuffer(bufferWithChannel);
         } while (true);
 
         releaseFreeBuffers();
@@ -226,7 +225,7 @@ public class SortBufferAccumulator implements BufferAccumulator {
             writeBuffer.put(0, record, toCopy);
 
             flushBuffer(
-                    new BufferWithSubpartition(
+                    new BufferWithChannel(
                             new NetworkBuffer(
                                     writeBuffer, checkNotNull(bufferRecycler), dataType, toCopy),
                             subpartitionId));
@@ -243,12 +242,11 @@ public class SortBufferAccumulator implements BufferAccumulator {
         return freeSegment;
     }
 
-    private void flushBuffer(BufferWithSubpartition bufferWithSubpartition) {
+    private void flushBuffer(BufferWithChannel bufferWithChannel) {
         checkNotNull(accumulatedBufferFlusher)
                 .accept(
-                        new TieredStorageSubpartitionId(
-                                bufferWithSubpartition.getSubpartitionIndex()),
-                        Collections.singletonList(bufferWithSubpartition.getBuffer()));
+                        new TieredStorageSubpartitionId(bufferWithChannel.getChannelIndex()),
+                        Collections.singletonList(bufferWithChannel.getBuffer()));
     }
 
     private Buffer requestBuffer() {

@@ -56,7 +56,7 @@ public class SortBasedDataBuffer extends SortBuffer {
     }
 
     @Override
-    public BufferWithSubpartition getNextBuffer(MemorySegment transitBuffer) {
+    public BufferWithChannel getNextBuffer(MemorySegment transitBuffer) {
         checkState(isFinished, "Sort buffer is not ready to be read.");
         checkState(!isReleased, "Sort buffer is already released.");
 
@@ -66,7 +66,7 @@ public class SortBasedDataBuffer extends SortBuffer {
 
         int numBytesCopied = 0;
         DataType bufferDataType = DataType.DATA_BUFFER;
-        int subpartitionIndex = subpartitionReadOrder[readOrderIndex];
+        int channelIndex = subpartitionReadOrder[readOrderIndex];
 
         do {
             int sourceSegmentIndex = getSegmentIndexFromPointer(readIndexEntryAddress);
@@ -101,9 +101,9 @@ public class SortBasedDataBuffer extends SortBuffer {
                             length);
 
             if (recordRemainingBytes == 0) {
-                // move to next subpartition if the current subpartition has been finished
-                if (readIndexEntryAddress == lastIndexEntryAddresses[subpartitionIndex]) {
-                    updateReadSubpartitionAndIndexEntryAddress();
+                // move to next channel if the current channel has been finished
+                if (readIndexEntryAddress == lastIndexEntryAddresses[channelIndex]) {
+                    updateReadChannelAndIndexEntryAddress();
                     break;
                 }
                 readIndexEntryAddress = nextReadIndexEntryAddress;
@@ -113,6 +113,6 @@ public class SortBasedDataBuffer extends SortBuffer {
         numTotalBytesRead += numBytesCopied;
         Buffer buffer =
                 new NetworkBuffer(transitBuffer, (buf) -> {}, bufferDataType, numBytesCopied);
-        return new BufferWithSubpartition(buffer, subpartitionIndex);
+        return new BufferWithChannel(buffer, channelIndex);
     }
 }

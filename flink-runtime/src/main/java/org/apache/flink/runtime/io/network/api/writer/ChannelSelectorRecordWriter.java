@@ -47,7 +47,7 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable>
         super(writer, timeout, taskName);
 
         this.channelSelector = checkNotNull(channelSelector);
-        this.channelSelector.setup(numberOfSubpartitions);
+        this.channelSelector.setup(numberOfChannels);
     }
 
     @Override
@@ -59,15 +59,13 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable>
     public void broadcastEmit(T record) throws IOException {
         checkErroneous();
 
-        // Emitting to all subpartitions in a for loop can be better than calling
+        // Emitting to all channels in a for loop can be better than calling
         // ResultPartitionWriter#broadcastRecord because the broadcastRecord
         // method incurs extra overhead.
         ByteBuffer serializedRecord = serializeRecord(serializer, record);
-        for (int subpartitionIndex = 0;
-                subpartitionIndex < numberOfSubpartitions;
-                subpartitionIndex++) {
+        for (int channelIndex = 0; channelIndex < numberOfChannels; channelIndex++) {
             serializedRecord.rewind();
-            emit(serializedRecord, subpartitionIndex);
+            emit(serializedRecord, channelIndex);
         }
 
         if (flushAlways) {

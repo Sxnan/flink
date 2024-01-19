@@ -22,23 +22,23 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Buffer and the corresponding subpartition index. */
-public class BufferWithSubpartition {
+/** Buffer and the corresponding channel index. */
+public class BufferWithChannel {
 
     private final Buffer buffer;
 
-    private final int subpartitionIndex;
+    private final int channelIndex;
 
-    public BufferWithSubpartition(Buffer buffer, int subpartitionIndex) {
+    public BufferWithChannel(Buffer buffer, int channelIndex) {
         this.buffer = checkNotNull(buffer);
-        this.subpartitionIndex = subpartitionIndex;
+        this.channelIndex = channelIndex;
     }
 
     public Buffer getBuffer() {
         return buffer;
     }
 
-    public int getSubpartitionIndex() {
-        return subpartitionIndex;
+    public int getChannelIndex() {
+        return channelIndex;
     }
 }

@@ -24,7 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.partition.BufferWithSubpartition;
+import org.apache.flink.runtime.io.network.partition.BufferWithChannel;
 import org.apache.flink.runtime.io.network.partition.SortBuffer;
 
 import org.junit.jupiter.api.Test;
@@ -98,7 +98,7 @@ class TieredStorageSortBufferTest {
             --numDataBuffers;
 
             while (sortBuffer.hasRemaining()) {
-                BufferWithSubpartition buffer = copyIntoSegment(sortBuffer);
+                BufferWithChannel buffer = copyIntoSegment(sortBuffer);
                 if (buffer == null) {
                     break;
                 }
@@ -174,36 +174,34 @@ class TieredStorageSortBufferTest {
         sortBuffer.finish();
 
         MemorySegment memorySegment = bufferPool.requestMemorySegmentBlocking();
-        BufferWithSubpartition bufferWithSubpartition = sortBuffer.getNextBuffer(memorySegment);
-        assertThat(bufferWithSubpartition.getBuffer().isBuffer()).isTrue();
-        assertThat(bufferWithSubpartition.getSubpartitionIndex()).isEqualTo(subpartitionId);
-        bufferWithSubpartition.getBuffer().recycleBuffer();
+        BufferWithChannel bufferWithChannel = sortBuffer.getNextBuffer(memorySegment);
+        assertThat(bufferWithChannel.getBuffer().isBuffer()).isTrue();
+        assertThat(bufferWithChannel.getChannelIndex()).isEqualTo(subpartitionId);
+        bufferWithChannel.getBuffer().recycleBuffer();
         assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(numBuffersForSort);
 
-        bufferWithSubpartition = sortBuffer.getNextBuffer(memorySegment);
-        assertThat(bufferWithSubpartition.getBuffer().isBuffer()).isFalse();
-        assertThat(bufferWithSubpartition.getSubpartitionIndex()).isEqualTo(subpartitionId);
+        bufferWithChannel = sortBuffer.getNextBuffer(memorySegment);
+        assertThat(bufferWithChannel.getBuffer().isBuffer()).isFalse();
+        assertThat(bufferWithChannel.getChannelIndex()).isEqualTo(subpartitionId);
         assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(numBuffersForSort);
     }
 
-    private static BufferWithSubpartition copyIntoSegment(SortBuffer dataBuffer) {
+    private static BufferWithChannel copyIntoSegment(SortBuffer dataBuffer) {
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE_BYTES);
         return dataBuffer.getNextBuffer(segment);
     }
 
     private static void addBufferRead(
-            BufferWithSubpartition bufferWithSubpartition,
-            Queue<Buffer>[] buffersRead,
-            int[] numBytesRead) {
-        int subpartition = bufferWithSubpartition.getSubpartitionIndex();
-        Buffer buffer = bufferWithSubpartition.getBuffer();
-        buffersRead[subpartition].add(
+            BufferWithChannel bufferAndChannel, Queue<Buffer>[] buffersRead, int[] numBytesRead) {
+        int channel = bufferAndChannel.getChannelIndex();
+        Buffer buffer = bufferAndChannel.getBuffer();
+        buffersRead[channel].add(
                 new NetworkBuffer(
                         buffer.getMemorySegment(),
                         MemorySegment::free,
                         buffer.getDataType(),
                         buffer.getSize()));
-        numBytesRead[subpartition] += buffer.getSize();
+        numBytesRead[channel] += buffer.getSize();
     }
 
     private static void checkWriteReadResult(

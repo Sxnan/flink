@@ -386,7 +386,7 @@ public class SortMergeResultPartition extends ResultPartition {
                 useHashBuffer
                         ? EXPECTED_WRITE_BATCH_SIZE
                         : Math.min(EXPECTED_WRITE_BATCH_SIZE, segments.size());
-        List<BufferWithSubpartition> toWrite = new ArrayList<>(numBuffersToWrite);
+        List<BufferWithChannel> toWrite = new ArrayList<>(numBuffersToWrite);
 
         fileWriter.startNewRegion(isBroadcast);
         do {
@@ -395,15 +395,14 @@ public class SortMergeResultPartition extends ResultPartition {
                 segments = new ArrayDeque<>(freeSegments);
             }
 
-            BufferWithSubpartition bufferWithSubpartition =
-                    dataBuffer.getNextBuffer(segments.poll());
-            if (bufferWithSubpartition == null) {
+            BufferWithChannel bufferWithChannel = dataBuffer.getNextBuffer(segments.poll());
+            if (bufferWithChannel == null) {
                 writeBuffers(toWrite);
                 break;
             }
 
-            updateStatistics(bufferWithSubpartition, isBroadcast);
-            toWrite.add(compressBufferIfPossible(bufferWithSubpartition));
+            updateStatistics(bufferWithChannel, isBroadcast);
+            toWrite.add(compressBufferIfPossible(bufferWithChannel));
         } while (true);
 
         releaseFreeBuffers();
@@ -425,25 +424,23 @@ public class SortMergeResultPartition extends ResultPartition {
         }
     }
 
-    private BufferWithSubpartition compressBufferIfPossible(
-            BufferWithSubpartition bufferWithSubpartition) {
-        Buffer buffer = bufferWithSubpartition.getBuffer();
+    private BufferWithChannel compressBufferIfPossible(BufferWithChannel bufferWithChannel) {
+        Buffer buffer = bufferWithChannel.getBuffer();
         if (!canBeCompressed(buffer)) {
-            return bufferWithSubpartition;
+            return bufferWithChannel;
         }
 
         buffer = checkNotNull(bufferCompressor).compressToOriginalBuffer(buffer);
-        return new BufferWithSubpartition(buffer, bufferWithSubpartition.getSubpartitionIndex());
+        return new BufferWithChannel(buffer, bufferWithChannel.getChannelIndex());
     }
 
-    private void updateStatistics(
-            BufferWithSubpartition bufferWithSubpartition, boolean isBroadcast) {
+    private void updateStatistics(BufferWithChannel bufferWithChannel, boolean isBroadcast) {
         numBuffersOut.inc(isBroadcast ? numSubpartitions : 1);
-        long readableBytes = bufferWithSubpartition.getBuffer().readableBytes();
+        long readableBytes = bufferWithChannel.getBuffer().readableBytes();
         if (isBroadcast) {
             resultPartitionBytes.incAll(readableBytes);
         } else {
-            resultPartitionBytes.inc(bufferWithSubpartition.getSubpartitionIndex(), readableBytes);
+            resultPartitionBytes.inc(bufferWithChannel.getChannelIndex(), readableBytes);
         }
         numBytesOut.inc(isBroadcast ? readableBytes * numSubpartitions : readableBytes);
     }
@@ -457,7 +454,7 @@ public class SortMergeResultPartition extends ResultPartition {
         // a large record will be spilled to a separated data region
         fileWriter.startNewRegion(isBroadcast);
 
-        List<BufferWithSubpartition> toWrite = new ArrayList<>();
+        List<BufferWithChannel> toWrite = new ArrayList<>();
         Queue<MemorySegment> segments = new ArrayDeque<>(freeSegments);
 
         while (record.hasRemaining()) {
@@ -472,17 +469,16 @@ public class SortMergeResultPartition extends ResultPartition {
             writeBuffer.put(0, record, toCopy);
 
             NetworkBuffer buffer = new NetworkBuffer(writeBuffer, (buf) -> {}, dataType, toCopy);
-            BufferWithSubpartition bufferWithSubpartition =
-                    new BufferWithSubpartition(buffer, targetSubpartition);
-            updateStatistics(bufferWithSubpartition, isBroadcast);
-            toWrite.add(compressBufferIfPossible(bufferWithSubpartition));
+            BufferWithChannel bufferWithChannel = new BufferWithChannel(buffer, targetSubpartition);
+            updateStatistics(bufferWithChannel, isBroadcast);
+            toWrite.add(compressBufferIfPossible(bufferWithChannel));
         }
 
         fileWriter.writeBuffers(toWrite);
         releaseFreeBuffers();
     }
 
-    private void writeBuffers(List<BufferWithSubpartition> buffers) throws IOException {
+    private void writeBuffers(List<BufferWithChannel> buffers) throws IOException {
         fileWriter.writeBuffers(buffers);
         buffers.forEach(buffer -> buffer.getBuffer().recycleBuffer());
         buffers.clear();
@@ -580,8 +576,8 @@ public class SortMergeResultPartition extends ResultPartition {
         int[] order = new int[numSubpartitions];
         Random random = new Random();
         int shift = random.nextInt(numSubpartitions);
-        for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
-            order[(subpartition + shift) % numSubpartitions] = subpartition;
+        for (int channel = 0; channel < numSubpartitions; ++channel) {
+            order[(channel + shift) % numSubpartitions] = channel;
         }
         return order;
     }

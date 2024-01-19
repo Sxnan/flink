@@ -165,9 +165,9 @@ class SortMergeResultPartitionTest {
         ResultSubpartitionView[] views = createSubpartitionViews(partition, numSubpartitions);
         readData(
                 views,
-                bufferWithSubpartition -> {
-                    Buffer buffer = bufferWithSubpartition.getBuffer();
-                    int subpartition = bufferWithSubpartition.getSubpartitionIndex();
+                bufferWithChannel -> {
+                    Buffer buffer = bufferWithChannel.getBuffer();
+                    int subpartition = bufferWithChannel.getChannelIndex();
 
                     int numBytes = buffer.readableBytes();
                     numBytesRead[subpartition] += numBytes;
@@ -209,7 +209,7 @@ class SortMergeResultPartitionTest {
     }
 
     private long readData(
-            ResultSubpartitionView[] views, Consumer<BufferWithSubpartition> bufferProcessor)
+            ResultSubpartitionView[] views, Consumer<BufferWithChannel> bufferProcessor)
             throws Exception {
         int dataSize = 0;
         int numEndOfPartitionEvents = 0;
@@ -221,7 +221,7 @@ class SortMergeResultPartitionTest {
                 ResultSubpartition.BufferAndBacklog bufferAndBacklog = view.getNextBuffer();
                 while (bufferAndBacklog != null) {
                     Buffer buffer = bufferAndBacklog.buffer();
-                    bufferProcessor.accept(new BufferWithSubpartition(buffer, subpartition));
+                    bufferProcessor.accept(new BufferWithChannel(buffer, subpartition));
                     dataSize += buffer.readableBytes();
 
                     if (!buffer.isBuffer()) {
@@ -264,8 +264,8 @@ class SortMergeResultPartitionTest {
         ByteBuffer recordRead = ByteBuffer.allocate(bufferSize * numBuffers);
         readData(
                 new ResultSubpartitionView[] {view},
-                bufferWithSubpartition -> {
-                    Buffer buffer = bufferWithSubpartition.getBuffer();
+                bufferWithChannel -> {
+                    Buffer buffer = bufferWithChannel.getBuffer();
                     int numBytes = buffer.readableBytes();
 
                     MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(numBytes);
@@ -314,8 +314,8 @@ class SortMergeResultPartitionTest {
         long dataRead =
                 readData(
                         views,
-                        bufferWithSubpartition -> {
-                            bufferWithSubpartition.getBuffer().recycleBuffer();
+                        bufferWithChannel -> {
+                            bufferWithChannel.getBuffer().recycleBuffer();
                         });
         assertThat(dataRead).isEqualTo(dataSize);
     }

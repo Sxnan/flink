@@ -56,11 +56,11 @@ class BroadcastRecordWriterTest {
      */
     @Test
     void testBroadcastMixedRandomEmitRecord(@TempDir Path tempPath) throws Exception {
-        final int numberOfSubpartitions = 8;
+        final int numberOfChannels = 8;
         final int numberOfRecords = 8;
         final int bufferSize = 32;
 
-        final ResultPartition partition = createResultPartition(bufferSize, numberOfSubpartitions);
+        final ResultPartition partition = createResultPartition(bufferSize, numberOfChannels);
         final BroadcastRecordWriter<SerializationTestType> writer =
                 new BroadcastRecordWriter<>(partition, -1, "test");
         final RecordDeserializer<SerializationTestType> deserializer =
@@ -70,22 +70,22 @@ class BroadcastRecordWriterTest {
         // generate the configured number of int values as global record set
         final Iterable<SerializationTestType> records =
                 Util.randomRecords(numberOfRecords, SerializationTestTypeFactory.INT);
-        // restore the corresponding record set for every subpartition
+        // restore the corresponding record set for every input channel
         final Map<Integer, ArrayDeque<SerializationTestType>> serializedRecords = new HashMap<>();
-        for (int i = 0; i < numberOfSubpartitions; i++) {
+        for (int i = 0; i < numberOfChannels; i++) {
             serializedRecords.put(i, new ArrayDeque<>());
         }
 
-        // every record in global set would both emit into one random subpartition and broadcast to
-        // all the subpartitions
+        // every record in global set would both emit into one random channel and broadcast to all
+        // the channels
         int index = 0;
         for (SerializationTestType record : records) {
-            int randomSubpartition = index++ % numberOfSubpartitions;
-            writer.emit(record, randomSubpartition);
-            serializedRecords.get(randomSubpartition).add(record);
+            int randomChannel = index++ % numberOfChannels;
+            writer.emit(record, randomChannel);
+            serializedRecords.get(randomChannel).add(record);
 
             writer.broadcastEmit(record);
-            for (int i = 0; i < numberOfSubpartitions; i++) {
+            for (int i = 0; i < numberOfChannels; i++) {
                 serializedRecords.get(i).add(record);
             }
         }
@@ -96,15 +96,15 @@ class BroadcastRecordWriterTest {
         // while random emitting
         assertThat(2 * numberOfRecords).isEqualTo(numberOfCreatedBuffers);
 
-        for (int i = 0; i < numberOfSubpartitions; i++) {
-            // every subpartition would queue the number of above crated buffers
+        for (int i = 0; i < numberOfChannels; i++) {
+            // every channel would queue the number of above crated buffers
             assertThat(partition.getNumberOfQueuedBuffers(i)).isEqualTo(numberOfRecords + 1);
 
-            final int excessRandomRecords = i < numberOfRecords % numberOfSubpartitions ? 1 : 0;
+            final int excessRandomRecords = i < numberOfRecords % numberOfChannels ? 1 : 0;
             final int numberOfRandomRecords =
-                    numberOfRecords / numberOfSubpartitions + excessRandomRecords;
+                    numberOfRecords / numberOfChannels + excessRandomRecords;
             final int numberOfTotalRecords = numberOfRecords + numberOfRandomRecords;
-            // verify the data correctness in every subpartition queue
+            // verify the data correctness in every channel queue
             verifyDeserializationResults(
                     partition.createSubpartitionView(i, new NoOpBufferAvailablityListener()),
                     deserializer,
@@ -121,9 +121,9 @@ class BroadcastRecordWriterTest {
     @Test
     void testRandomEmitAndBufferRecycling() throws Exception {
         int recordSize = 8;
-        int numberOfSubpartitions = 2;
+        int numberOfChannels = 2;
 
-        ResultPartition partition = createResultPartition(2 * recordSize, numberOfSubpartitions);
+        ResultPartition partition = createResultPartition(2 * recordSize, numberOfChannels);
         BufferPool bufferPool = partition.getBufferPool();
         BroadcastRecordWriter<SerializationTestType> writer =
                 new BroadcastRecordWriter<>(partition, -1, "test");
