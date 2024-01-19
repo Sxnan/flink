@@ -64,8 +64,7 @@ class ResultPartitionDeploymentDescriptorTest {
                     numberOfSubpartitions,
                     connectionIndex,
                     isBroadcast,
-                    isAllToAllDistribution,
-                    false);
+                    isAllToAllDistribution);
 
     private static final ResultPartitionID resultPartitionID =
             new ResultPartitionID(partitionId, producerExecutionId);

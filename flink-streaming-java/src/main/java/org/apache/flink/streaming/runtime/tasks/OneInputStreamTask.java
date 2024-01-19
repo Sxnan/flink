@@ -190,7 +190,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
     }
 
     private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate) {
-        StatusWatermarkValve statusWatermarkValve = new StatusWatermarkValve(inputGate);
+        int numberOfInputChannels = inputGate.getNumberOfInputChannels();
+        StatusWatermarkValve statusWatermarkValve = new StatusWatermarkValve(numberOfInputChannels);
 
         TypeSerializer<IN> inSerializer =
                 configuration.getTypeSerializerIn1(getUserCodeClassLoader());

@@ -272,7 +272,6 @@ public class ResultPartitionBuilder {
                 numberOfSubpartitions,
                 numTargetKeyGroups,
                 isBroadcast,
-                factory,
-                false);
+                factory);
     }
 }

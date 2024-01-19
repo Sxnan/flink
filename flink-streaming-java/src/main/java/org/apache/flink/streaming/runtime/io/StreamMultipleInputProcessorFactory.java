@@ -114,7 +114,8 @@ public class StreamMultipleInputProcessorFactory {
                                 networkInput.getTypeSerializer(),
                                 ioManager,
                                 new StatusWatermarkValve(
-                                        checkpointedInputGates[networkInput.getInputGateIndex()]),
+                                        checkpointedInputGates[networkInput.getInputGateIndex()]
+                                                .getNumberOfInputChannels()),
                                 i,
                                 inflightDataRescalingDescriptor,
                                 gatePartitioners,

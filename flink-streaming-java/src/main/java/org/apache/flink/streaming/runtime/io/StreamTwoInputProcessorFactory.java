@@ -89,7 +89,8 @@ public class StreamTwoInputProcessorFactory {
                         checkpointedInputGates[0],
                         typeSerializer1,
                         ioManager,
-                        new StatusWatermarkValve(checkpointedInputGates[0]),
+                        new StatusWatermarkValve(
+                                checkpointedInputGates[0].getNumberOfInputChannels()),
                         0,
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
@@ -101,7 +102,8 @@ public class StreamTwoInputProcessorFactory {
                         checkpointedInputGates[1],
                         typeSerializer2,
                         ioManager,
-                        new StatusWatermarkValve(checkpointedInputGates[1]),
+                        new StatusWatermarkValve(
+                                checkpointedInputGates[1].getNumberOfInputChannels()),
                         1,
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
