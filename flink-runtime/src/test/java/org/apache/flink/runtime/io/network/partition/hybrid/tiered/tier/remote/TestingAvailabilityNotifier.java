@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.remote;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
@@ -46,12 +45,6 @@ public class TestingAvailabilityNotifier implements AvailabilityNotifier {
     public void notifyAvailable(
             TieredStoragePartitionId partitionId, TieredStorageSubpartitionId subpartitionId) {
         notifyFunction.apply(partitionId, subpartitionId).complete(null);
-    }
-
-    @Override
-    public void notifyAvailable(
-            TieredStoragePartitionId partitionId, TieredStorageInputChannelId inputChannelId) {
-        throw new UnsupportedOperationException();
     }
 
     /** Builder for {@link TestingAvailabilityNotifier}. */

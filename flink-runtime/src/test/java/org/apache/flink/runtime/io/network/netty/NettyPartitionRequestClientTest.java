@@ -126,7 +126,8 @@ class NettyPartitionRequestClientTest {
 
             // retrigger subpartition request, e.g. due to failures
             inputGate.retriggerPartitionRequest(
-                    inputChannel.getPartitionId().getPartitionId(), inputChannel.getChannelInfo());
+                    inputChannel.getPartitionId().getPartitionId(),
+                    inputChannel.getConsumedSubpartitionIndex());
             runAllScheduledPendingTasks(channel, deadline);
 
             readFromOutbound = channel.readOutbound();
@@ -137,7 +138,8 @@ class NettyPartitionRequestClientTest {
 
             // retrigger subpartition request once again, e.g. due to failures
             inputGate.retriggerPartitionRequest(
-                    inputChannel.getPartitionId().getPartitionId(), inputChannel.getChannelInfo());
+                    inputChannel.getPartitionId().getPartitionId(),
+                    inputChannel.getConsumedSubpartitionIndex());
             runAllScheduledPendingTasks(channel, deadline);
 
             readFromOutbound = channel.readOutbound();

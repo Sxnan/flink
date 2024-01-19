@@ -24,6 +24,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
+import java.util.Collection;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Collects metrics of an input gate. */
@@ -50,7 +52,7 @@ public class InputGateMetrics {
     long refreshAndGetTotal() {
         long total = 0;
 
-        for (InputChannel channel : inputGate.inputChannels()) {
+        for (InputChannel channel : inputGate.getInputChannels().values()) {
             if (channel instanceof RemoteInputChannel) {
                 RemoteInputChannel rc = (RemoteInputChannel) channel;
 
@@ -70,7 +72,9 @@ public class InputGateMetrics {
     int refreshAndGetMin() {
         int min = Integer.MAX_VALUE;
 
-        for (InputChannel channel : inputGate.inputChannels()) {
+        Collection<InputChannel> channels = inputGate.getInputChannels().values();
+
+        for (InputChannel channel : channels) {
             if (channel instanceof RemoteInputChannel) {
                 RemoteInputChannel rc = (RemoteInputChannel) channel;
 
@@ -95,7 +99,7 @@ public class InputGateMetrics {
     int refreshAndGetMax() {
         int max = 0;
 
-        for (InputChannel channel : inputGate.inputChannels()) {
+        for (InputChannel channel : inputGate.getInputChannels().values()) {
             if (channel instanceof RemoteInputChannel) {
                 RemoteInputChannel rc = (RemoteInputChannel) channel;
 
@@ -117,7 +121,7 @@ public class InputGateMetrics {
         long total = 0;
         int count = 0;
 
-        for (InputChannel channel : inputGate.inputChannels()) {
+        for (InputChannel channel : inputGate.getInputChannels().values()) {
             if (channel instanceof RemoteInputChannel) {
                 RemoteInputChannel rc = (RemoteInputChannel) channel;
 

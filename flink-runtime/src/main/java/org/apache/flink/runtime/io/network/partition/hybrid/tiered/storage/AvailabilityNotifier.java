@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
@@ -37,14 +36,4 @@ public interface AvailabilityNotifier {
      */
     void notifyAvailable(
             TieredStoragePartitionId partitionId, TieredStorageSubpartitionId subpartitionId);
-
-    /**
-     * Notify that the data for the specific partition and input channel is available in tiered
-     * storage.
-     *
-     * @param partitionId the partition id.
-     * @param inputChannelId the input channel id.
-     */
-    void notifyAvailable(
-            TieredStoragePartitionId partitionId, TieredStorageInputChannelId inputChannelId);
 }

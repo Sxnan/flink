@@ -48,12 +48,13 @@ public class DiskTierConsumerAgent implements TierConsumerAgent {
             TieredStorageNettyService nettyService) {
         for (TieredStorageConsumerSpec tieredStorageConsumerSpec : tieredStorageConsumerSpecs) {
             TieredStoragePartitionId partitionId = tieredStorageConsumerSpec.getPartitionId();
+            TieredStorageSubpartitionId subpartitionId =
+                    tieredStorageConsumerSpec.getSubpartitionId();
             nettyConnectionReaders
                     .computeIfAbsent(partitionId, ignore -> new HashMap<>())
                     .put(
-                            tieredStorageConsumerSpec.getSubpartitionId(),
-                            nettyService.registerConsumer(
-                                    partitionId, tieredStorageConsumerSpec.getSubpartitionId()));
+                            subpartitionId,
+                            nettyService.registerConsumer(partitionId, subpartitionId));
         }
     }
 
