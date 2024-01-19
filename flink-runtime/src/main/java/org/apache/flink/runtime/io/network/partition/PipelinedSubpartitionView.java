@@ -114,11 +114,6 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
     }
 
     @Override
-    public int peekNextBufferSubpartitionId() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public String toString() {
         return String.format(
                 "%s(index: %d) of ResultPartition %s",

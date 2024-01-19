@@ -40,7 +40,6 @@ import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvi
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
@@ -872,30 +871,16 @@ public class SingleInputGate extends IndexedInputGate {
         return Optional.of(bufferAndAvailability.buffer());
     }
 
-    private Optional<Buffer> readBufferFromTieredStore(InputChannel inputChannel)
-            throws IOException {
+    private Optional<Buffer> readBufferFromTieredStore(InputChannel inputChannel) {
         TieredStorageConsumerSpec tieredStorageConsumerSpec =
                 checkNotNull(tieredStorageConsumerSpecs).get(inputChannel.getChannelIndex());
-
-        int subpartitionId =
-                checkNotNull(tieredStorageConsumerClient)
-                        .peekNextBufferSubpartitionId(
-                                tieredStorageConsumerSpec.getPartitionId(),
-                                new ResultSubpartitionIndexSet(
-                                        tieredStorageConsumerSpec
-                                                .getSubpartitionId()
-                                                .getSubpartitionId()));
-        if (subpartitionId < 0) {
-            return Optional.empty();
-        }
-
         // If the data is available in the specific partition and subpartition, read buffer through
         // consumer client.
         Optional<Buffer> buffer =
                 checkNotNull(tieredStorageConsumerClient)
                         .getNextBuffer(
                                 tieredStorageConsumerSpec.getPartitionId(),
-                                new TieredStorageSubpartitionId(subpartitionId));
+                                tieredStorageConsumerSpec.getSubpartitionId());
         // Continue to read buffer from consumer client until the specific partition and
         // subpartition is unavailable because an empty buffer is read.
         buffer.ifPresent(result -> queueChannel(checkNotNull(inputChannel), null, false));

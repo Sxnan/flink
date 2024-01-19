@@ -36,7 +36,6 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.activation.UnsupportedDataTypeException;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -189,11 +188,6 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
         buffer.setReaderIndex(0);
         return event.getClass() == EndOfChannelStateEvent.class;
-    }
-
-    @Override
-    protected int peekNextBufferSubpartitionIdInternal() throws IOException {
-        throw new UnsupportedDataTypeException();
     }
 
     @Override

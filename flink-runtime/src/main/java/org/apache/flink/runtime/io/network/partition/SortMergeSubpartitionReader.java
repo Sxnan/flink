@@ -247,9 +247,4 @@ class SortMergeSubpartitionReader
 
     @Override
     public void notifyNewBufferSize(int newBufferSize) {}
-
-    @Override
-    public int peekNextBufferSubpartitionId() {
-        throw new UnsupportedOperationException();
-    }
 }

@@ -67,9 +67,4 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
 
     @Override
     public void notifyNewBufferSize(int newBufferSize) {}
-
-    @Override
-    public int peekNextBufferSubpartitionId() {
-        throw new UnsupportedOperationException();
-    }
 }

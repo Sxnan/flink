@@ -221,7 +221,6 @@ public class NettyTestUtil {
         assertThat(expected.sequenceNumber).isEqualTo(actual.sequenceNumber);
         assertThat(expected.bufferSize).isEqualTo(actual.bufferSize);
         assertThat(expected.receiverId).isEqualTo(actual.receiverId);
-        assertThat(expected.subpartitionId).isEqualTo(actual.subpartitionId);
     }
 
     // ------------------------------------------------------------------------

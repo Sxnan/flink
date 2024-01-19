@@ -39,10 +39,6 @@ public class ResultSubpartitionIndexSet extends IndexRange {
         super(startIndex, endIndex);
     }
 
-    public boolean contains(int index) {
-        return index >= startIndex && index <= endIndex;
-    }
-
     public Iterable<Integer> values() {
         return () ->
                 new Iterator<Integer>() {

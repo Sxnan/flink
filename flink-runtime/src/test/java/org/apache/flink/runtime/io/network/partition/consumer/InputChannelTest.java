@@ -142,11 +142,6 @@ class InputChannelTest {
         void requestSubpartitions() throws IOException, InterruptedException {}
 
         @Override
-        protected int peekNextBufferSubpartitionIdInternal() throws IOException {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
         public Optional<BufferAndAvailability> getNextBuffer()
                 throws IOException, InterruptedException {
             return Optional.empty();

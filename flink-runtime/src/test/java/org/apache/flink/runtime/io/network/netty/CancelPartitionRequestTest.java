@@ -256,11 +256,6 @@ class CancelPartitionRequestTest {
         public void notifyNewBufferSize(int newBufferSize) {}
 
         @Override
-        public int peekNextBufferSubpartitionId() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
         public Throwable getFailureCause() {
             return null;
         }

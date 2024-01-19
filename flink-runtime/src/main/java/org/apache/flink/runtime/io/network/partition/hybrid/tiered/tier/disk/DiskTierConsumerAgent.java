@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyConnectionReader;
@@ -66,25 +65,6 @@ public class DiskTierConsumerAgent implements TierConsumerAgent {
     @Override
     public void registerAvailabilityNotifier(AvailabilityNotifier notifier) {
         // noop
-    }
-
-    @Override
-    public int peekNextBufferSubpartitionId(
-            TieredStoragePartitionId partitionId, ResultSubpartitionIndexSet indexSet)
-            throws IOException {
-        for (CompletableFuture<NettyConnectionReader> readerFuture :
-                nettyConnectionReaders.get(partitionId).values()) {
-            int subpartitionId;
-            try {
-                subpartitionId = readerFuture.get().peekNextBufferSubpartitionId();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException("Failed to peek subpartition Id.", e);
-            }
-            if (indexSet.contains(subpartitionId)) {
-                return subpartitionId;
-            }
-        }
-        return -1;
     }
 
     @Override

@@ -164,11 +164,6 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     }
 
     @Override
-    public int peekNextBufferSubpartitionId() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void notifyDataAvailable() {
         throw new UnsupportedOperationException("Method should never be called.");
     }

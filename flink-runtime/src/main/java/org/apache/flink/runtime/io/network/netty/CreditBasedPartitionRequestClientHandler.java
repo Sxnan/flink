@@ -359,10 +359,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
         } else if (bufferOrEvent.getBuffer() != null) {
             inputChannel.onBuffer(
-                    bufferOrEvent.getBuffer(),
-                    bufferOrEvent.sequenceNumber,
-                    bufferOrEvent.backlog,
-                    bufferOrEvent.subpartitionId);
+                    bufferOrEvent.getBuffer(), bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
         } else {
             throw new IllegalStateException(
                     "The read buffer is null in credit-based input channel.");
